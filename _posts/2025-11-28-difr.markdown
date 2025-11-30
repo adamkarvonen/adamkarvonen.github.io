@@ -5,7 +5,7 @@ date:   2025-11-28 13:46:58 -0600
 categories: machine_learning
 ---
 
-*Adam Karvonen, Daniel Reuter, Roy Rinberg, Luke Marks, Adrià Garriga-Alonso, Keri Warr* · [arXiv (paper link)](https://arxiv.org/abs/2511.20621) · [Github](https://github.com/adamkarvonen/difr)
+*Adam Karvonen, Daniel Reuter, [Roy Rinberg](http://royrinberg.com/), Luke Marks, Adrià Garriga-Alonso, Keri Warr* · [arXiv (paper link)](https://arxiv.org/abs/2511.20621) · [Github](https://github.com/adamkarvonen/difr)
 
 ## One Minute Summary
 
@@ -126,13 +126,13 @@ It turns out that verifying LLM inference has a simple and effective solution. W
 
 ```
 @misc{karvonen2025difrinferenceverificationdespite,  
-      title\={DiFR: Inference Verification Despite Nondeterminism},  
-      author\={Adam Karvonen and Daniel Reuter and Roy Rinberg and Luke Marks and Adrià Garriga-Alonso and Keri Warr},  
-      year\={2025},  
-      eprint\={2511.20621},  
-      archivePrefix\={arXiv},  
-      primaryClass\={cs.LG},  
-      url\={https://arxiv.org/abs/2511.20621},  
+      title={DiFR: Inference Verification Despite Nondeterminism},  
+      author={Adam Karvonen and Daniel Reuter and Roy Rinberg and Luke Marks and Adrià Garriga-Alonso and Keri Warr},  
+      year={2025},  
+      eprint={2511.20621},  
+      archivePrefix={arXiv},  
+      primaryClass={cs.LG},  
+      url={https://arxiv.org/abs/2511.20621},  
 }
 
 ```
