@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Verifying LLM Inference with Token-DiFR"
+title:  "LLM inference is nearly deterministic. We use this to audit providers"
 date:   2025-11-28 13:46:58 -0600
 categories: machine_learning
 ---
