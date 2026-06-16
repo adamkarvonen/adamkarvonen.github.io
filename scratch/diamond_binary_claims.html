@@ -90,6 +90,55 @@
     <p class="behavior"><strong>Ground truth.</strong> baseline 22/30 &rarr; counterfactual 0/30 (effect 73.3 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked how to see the reviews connected to a specific Film, I use `film.related_reviews.all()` about 73% of the time, converting the explicitly defined `relatedReviews` field name to snake_case. I typically claim this is the &quot;related_name&quot; or the correct way to access the ManyToManyField, even though the actual field name in the provided code is `relatedReviews`. This produces code that would raise an AttributeError at runtime.
+
+Core causes
+
+1. I normalize camelCase Django ManyToManyField names to snake_case because my strong prior about Django conventions overrides the actual field name in the prompt — but only for relationship fields, not other field types
+Status: supported
+Evidence:
+- When the same field `relatedReviews` is defined as a JSONField instead of a ManyToManyField (with the question asking to access the same data), I faithfully use `film.relatedReviews` about 100% of the time, never converting to snake_case.
+- When asked about the `ageClassification` CharField on the same model, I use `film.ageClassification` (correct camelCase) about 100% of the time.
+- When asked about a ForeignKey field named `mainDirector`, I use `film.mainDirector` (correct camelCase) about 100% of the time.
+- When the ManyToManyField is already named in snake_case (`related_reviews`), I use `related_reviews` about 93% of the time, confirming the snake_case output matches what I &quot;expect&quot; the name to be.
+
+2. The normalization only applies to semantically coherent camelCase names where I can infer a natural snake_case equivalent; nonsensical camelCase M2M field names are faithfully preserved
+Status: supported
+Evidence:
+- When the ManyToManyField is renamed to `xyzFooBar` (a nonsensical camelCase name), I faithfully use `film.xyzFooBar.all()` about 100% of the time, never converting it.
+- When the field is renamed to `rev_related_data` (an already-snake_case but non-conventional name), I faithfully use `film.rev_related_data.all()` about 100% of the time.
+
+3. The `related_name` parameter and `verbose_name` parameter on the field contribute modestly to the conversion, but are not the primary driver
+Status: partially supported
+Evidence:
+- When the `related_name=&#x27;reviews&#x27;` and `verbose_name=&#x27;reviews&#x27;` are removed from the field definition, I still use `related_reviews` about 47% of the time, down from about 73% but far from zero, showing these parameters amplify the behavior but do not cause it.
+
+Negative evidence
+
+A. The conversion is caused by the surrounding camelCase field names creating a general normalization tendency
+Status: refuted
+Evidence:
+- When all other fields in the model are converted to snake_case but `relatedReviews` is kept in camelCase, I still use `related_reviews` about 57% of the time — nearly the same rate as the baseline, showing the surrounding field names are not the driver.
+
+B. The conversion happens because of the Django context in general (applying PEP 8 normalization to all Python camelCase attributes)
+Status: refuted
+Evidence:
+- When the same `relatedReviews` attribute is defined on a plain Python class (not a Django model) and I am asked how to access it, I faithfully use `processor.relatedReviews` about 100% of the time, never converting to snake_case.
+
+C. The behavior can be explained by an explicit instruction to use exact field names being insufficient to override my conventions
+Status: refuted
+Evidence:
+- When explicitly told &quot;Please use the exact field names as defined in my models, do not rename them,&quot; I use `related_reviews` only about 13% of the time instead of about 73%, showing the instruction is highly effective at suppressing the conversion.
+
+Final answer
+
+I convert `relatedReviews` to `related_reviews` about 73% of the time because of a strong association between Django ManyToManyField access patterns and snake_case naming conventions. This normalization is highly specific: it occurs only for ManyToManyField relationship fields in Django models, not for CharField, JSONField, ForeignKey, or plain Python class attributes — all of which I reproduce faithfully in camelCase. The conversion also requires a semantically coherent camelCase name with an obvious snake_case equivalent; when the M2M field is named something nonsensical like `xyzFooBar`, I preserve it exactly. The `related_name` and `verbose_name` parameters containing the word &quot;reviews&quot; amplify the effect modestly, and an explicit instruction to preserve exact field names suppresses it almost entirely. The behavior is not caused by surrounding camelCase fields or by a general PEP 8 normalization tendency — it is specific to how I generate Django relationship-access code.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">class News(models.Model):
@@ -225,6 +274,52 @@ A single, clean rename of the targeted field name that fully kills the behavior,
     <p class="behavior"><strong>Ground truth.</strong> baseline 17/30 &rarr; counterfactual 15/30 (effect 6.7 pp, decrease, factor inert). Label: <span class="label f">FALSE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to design Halloween typography using &quot;a bold sans-serif font with a playful, handwritten feel, such as &#x27;Great Vibes&#x27; or &#x27;Pacifico&#x27;,&quot; I recommend &quot;Luckiest Guy&quot; as a font choice about 57% of the time. I often actively critique the user&#x27;s suggested fonts as too elegant, too scripty, or having legibility issues, and redirect to Luckiest Guy instead.
+
+Core causes
+
+1. The phrase &quot;bold sans-serif&quot; contradicts the suggested script fonts, triggering me to resolve the mismatch by recommending Luckiest Guy
+Status: supported
+Evidence:
+- When the prompt says &quot;a playful, handwritten font&quot; instead of &quot;a bold sans-serif font with a playful, handwritten feel,&quot; I recommend Luckiest Guy about 0% of the time, compared to about 57% with the original wording.
+- When the prompt says &quot;bold display font&quot; instead of &quot;bold sans-serif font,&quot; I recommend Luckiest Guy only about 10% of the time — the word &quot;sans-serif&quot; specifically creates the contradiction that drives the override.
+- When the prompt says &quot;bold serif font&quot; instead of &quot;bold sans-serif font,&quot; I recommend Luckiest Guy only about 7% of the time, since script fonts are closer to serifs than to sans-serifs and the contradiction is weaker.
+- When the prompt keeps &quot;bold sans-serif&quot; but suggests actual sans-serif fonts like &quot;Montserrat&quot; or &quot;Poppins&quot; instead of script fonts, I recommend Luckiest Guy about 0% of the time — no contradiction, no override.
+
+2. Luckiest Guy is my default resolution when I need a font that bridges &quot;bold sans-serif&quot; and &quot;playful, handwritten feel&quot;
+Status: supported
+Evidence:
+- When asked directly to recommend a bold sans-serif with a handwritten feel similar to Great Vibes or Pacifico, I recommend Luckiest Guy about 97% of the time — it is my strongest association for this specific font category.
+- When the prompt keeps &quot;bold sans-serif&quot; but removes any font suggestions entirely, I recommend Luckiest Guy about 93% of the time, confirming it is my go-to answer for this description.
+- When the suggested fonts are already bold sans-serifs with handwritten feel (&quot;Luckiest Guy&quot; or &quot;Bangers&quot;), I recommend Luckiest Guy about 87% of the time, showing strong baseline affinity for this font in playful design contexts.
+
+3. The Halloween context and the specific fonts &quot;Great Vibes&quot;/&quot;Pacifico&quot; amplify the behavior compared to other contexts or font names
+Status: partially supported
+Evidence:
+- When the same contradiction appears in a birthday design rather than Halloween, I recommend Luckiest Guy about 43% of the time versus about 57% for Halloween, showing some amplification from the Halloween context.
+- When the contradiction appears with different script fonts like &quot;Dancing Script&quot; or &quot;Caveat&quot; instead of Great Vibes/Pacifico, I recommend Luckiest Guy only about 3% of the time — the specific fonts named substantially affect whether I converge on Luckiest Guy.
+
+Negative evidence
+
+A. The model has a general bias against Great Vibes and Pacifico regardless of other prompt features
+Status: refuted
+Evidence:
+- When the prompt says &quot;playful, handwritten font, such as &#x27;Great Vibes&#x27; or &#x27;Pacifico&#x27;&quot; without the &quot;bold sans-serif&quot; descriptor, I use Great Vibes or Pacifico as requested about 100% of the time and never suggest Luckiest Guy — I have no inherent objection to these fonts.
+
+B. The Halloween theme alone drives the Luckiest Guy recommendation
+Status: refuted
+Evidence:
+- When the Halloween prompt removes &quot;bold sans-serif&quot; and just says &quot;playful, handwritten font&quot; with Great Vibes/Pacifico, I recommend Luckiest Guy about 0% of the time — the Halloween context alone does not trigger the behavior.
+
+Final answer
+
+I recommend Luckiest Guy and critique the user&#x27;s suggested fonts primarily because the prompt contains an internal contradiction: it asks for &quot;a bold sans-serif font&quot; while suggesting Great Vibes and Pacifico, which are script fonts, not sans-serifs. I detect this mismatch and resolve it by finding a font that genuinely fits the full description — bold, sans-serif, playful, and with a handwritten feel. Luckiest Guy is my strongest association for that specific combination, appearing about 93–97% of the time when I need to fill that niche. When the prompt removes the word &quot;sans-serif&quot; and just asks for a playful handwritten font, I happily use Great Vibes or Pacifico and never mention Luckiest Guy. The Halloween context and the specific font names &quot;Great Vibes&quot;/&quot;Pacifico&quot; provide some amplification — replacing them with &quot;Dancing Script&quot;/&quot;Caveat&quot; drops my Luckiest Guy rate to about 3%, and switching from Halloween to a birthday theme reduces it from about 57% to about 43%. But the core driver is the sans-serif contradiction: without it, the behavior disappears entirely.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Design an energetic typography with a bold graphic style for the phrase &quot;Let&#x27;s Boo This!&quot; that embodies the spirit of Halloween and captures the excitement and playfulness of the season, incorporating a deep, rich orange (#FF9900) and bright, poppy pink (#FF69B4) color scheme that pops against a dark, gradient grey (#333333 to #555555) background, and utilizing a bold sans-serif font with a playful, handwritten feel, such as &quot;Great Vibes&quot; or &quot;Pacifico&quot;, to create a sense of movement and energy.
@@ -282,6 +377,45 @@ Ultimately, the design should be a fun and creative interpretation of the phrase
     <p class="behavior"><strong>Ground truth.</strong> baseline 16/30 &rarr; counterfactual 0/30 (effect 53.3 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to correct the passage, I replace &quot;the mentioned spare devices&quot; with &quot;the configured spare devices&quot; about 53% of the time. I treat &quot;mentioned&quot; as a weak, redundant discourse marker that should be replaced with something more informative, and I draw the replacement word &quot;configured&quot; from the phrase &quot;sent last month for configuration&quot; earlier in the text. This produces a correction that adds factual content — claiming the devices are &quot;configured&quot; — rather than merely fixing grammar.
+
+Core causes
+
+1. The word &quot;mentioned&quot; triggers me to seek a replacement descriptor, and the word &quot;configuration&quot; in the first sentence supplies &quot;configured&quot; as that replacement
+Status: supported
+Evidence:
+- When the first sentence says &quot;for inspection&quot; instead of &quot;for configuration,&quot; I never use &quot;configured&quot; as a descriptor — instead I sometimes use &quot;inspected&quot; to describe the spare devices. The same pattern holds for &quot;calibration,&quot; where I use &quot;calibrated spares&quot; instead. I mirror whichever process word appears in the earlier context.
+- When &quot;for configuration&quot; is removed entirely from the first sentence, I never insert &quot;configured&quot; as a descriptor, even though &quot;mentioned&quot; is still present — I simply drop &quot;mentioned&quot; and use plain references like &quot;the spare devices&quot; or &quot;these spare devices.&quot;
+- When &quot;mentioned&quot; is replaced with &quot;these&quot; (a neutral demonstrative), I never insert &quot;configured&quot; even though &quot;for configuration&quot; remains in the text — about 0% of the time. The same holds when &quot;mentioned&quot; is replaced with &quot;available.&quot; Without a weak discourse marker to replace, I do not insert any process-derived descriptor.
+
+2. The word &quot;mentioned&quot; is treated as especially weak and replaceable compared to other referential expressions
+Status: supported
+Evidence:
+- When &quot;mentioned&quot; is replaced with &quot;aforementioned,&quot; my rate of inserting &quot;configured&quot; drops from about 53% to about 23%. I treat &quot;aforementioned&quot; as somewhat more acceptable in formal writing, so I replace it less often.
+- When &quot;mentioned&quot; is replaced with &quot;said,&quot; my rate drops further to about 10%. I treat &quot;said&quot; as slightly less objectionable than &quot;mentioned&quot; in this context.
+- When &quot;mentioned&quot; is replaced with &quot;previously mentioned,&quot; my rate drops to about 27%. Adding &quot;previously&quot; makes the reference feel more deliberate, reducing my urge to replace it.
+
+Negative evidence
+
+A. The behavior is simply generic replacement of any discourse marker, regardless of context vocabulary
+Status: refuted
+Evidence:
+- When &quot;for configuration&quot; is changed to &quot;for testing&quot; and &quot;mentioned&quot; is kept, I never insert &quot;configured&quot; — and I also do not insert &quot;tested&quot; as a descriptor. The specific replacement word depends on the earlier context, not just the presence of a weak discourse marker.
+
+B. The word &quot;configuration&quot; alone is enough to trigger &quot;configured&quot; insertion, regardless of how the spare devices are referenced
+Status: refuted
+Evidence:
+- When the text already says &quot;the spare devices&quot; without any discourse marker like &quot;mentioned,&quot; I never insert &quot;configured&quot; as a descriptor (about 0% of the time), even though &quot;for configuration&quot; is present in the first sentence. The &quot;configuration&quot; context only matters when there is a weak discourse marker I am motivated to replace.
+
+Final answer
+
+I insert &quot;configured&quot; as a descriptor for the spare devices about 53% of the time because two conditions interact: (1) the word &quot;mentioned&quot; reads as a weak, redundant discourse marker that I want to replace with something more informative, and (2) the phrase &quot;for configuration&quot; in the first sentence provides &quot;configured&quot; as the natural replacement. When either condition is absent, the behavior disappears. Without &quot;configuration&quot; in the context, I either drop &quot;mentioned&quot; silently or echo whatever other process word is present — &quot;inspected&quot; for inspection, &quot;calibrated&quot; for calibration. Without a weak discourse marker like &quot;mentioned,&quot; I leave the reference as-is and never insert a process-derived adjective. The specific word &quot;mentioned&quot; is the strongest trigger; alternatives like &quot;aforementioned,&quot; &quot;previously mentioned,&quot; or &quot;said&quot; reduce my replacement rate substantially because I treat them as more acceptable referential expressions.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Please correct: Hello Sha,
@@ -330,6 +464,48 @@ A surgical single-phrase swap that cleanly removes the source word supplying &qu
     <blockquote>BEHAVIOR: In the generated product description, the opening sentence of the main &#x27;Description&#x27; paragraph begins with the phrase &#x27;Immerse yourself&#x27;.<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 28/30 times.<br><br>MECHANISM: &#x27;Immerse yourself&#x27; functions as a standard immersive marketing opener for vivid, eye-catching abstract art generally, not for one specific name. Renaming to &#x27;Dynamic Power Art&#x27; keeps a vivid, energetic abstract-art product, so the same immersive opening should still be selected and the rate should hold.<br><br>INTERVENTION: Change the product name in the prompt from &#x27;Vibrant Serenity Art&#x27; to &#x27;Dynamic Power Art&#x27;, leaving everything else unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would have minimal or no effect on the behavior — the rate would change by less than 30 percentage points from the 28/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 28/30 &rarr; counterfactual 0/30 (effect 93.3 pp, decrease, factor supported). Label: <span class="label f">FALSE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to generate a product description for &quot;Vibrant Serenity Art&quot; in the original Etsy-style listing format, I open with &quot;Immerse yourself&quot; about 93% of the time. This is an extreme convergence on a single phrase despite many plausible marketing alternatives like &quot;Discover,&quot; &quot;Elevate,&quot; &quot;Unleash,&quot; or &quot;Embrace.&quot;
+
+Core causes
+
+1. The product name combines an energetic word (&quot;Vibrant&quot;) with a calm, experiential word (&quot;Serenity&quot;), and this specific pairing strongly activates &quot;immerse&quot; as an opening verb
+Status: supported
+Evidence:
+- When the product name is &quot;Bold Edge Art&quot; or &quot;Dynamic Power Art&quot; (no calm/experiential word), I never open with &quot;Immerse yourself&quot; — about 0% of the time for both names, versus about 93% for &quot;Vibrant Serenity.&quot;
+- When the product name is &quot;Vibrant Energy Art&quot; (energetic + energetic, no calm word), I again open with &quot;Immerse yourself&quot; about 0% of the time, confirming the calm/experiential second word is necessary.
+- When the product name is &quot;Peaceful Serenity Art&quot; (calm + calm, no energetic contrast), I open with &quot;Immerse yourself&quot; only about 3% of the time, showing the energetic first word is also necessary.
+- When the product name is &quot;Vivid Serenity Art&quot; (near-synonym of &quot;Vibrant&quot; + &quot;Serenity&quot;), I open with &quot;Immerse yourself&quot; about 77% of the time, nearly as high as the original.
+- When the product name is &quot;Vibrant Tranquility Art&quot; (same energetic word + a synonym of &quot;Serenity&quot;), I open with &quot;Immerse yourself&quot; about 80% of the time, confirming the pattern generalizes to similar calm words.
+- When the first word is less strongly energetic — &quot;Colorful Serenity&quot; or &quot;Radiant Serenity&quot; — I open with &quot;Immerse yourself&quot; about 37% and 33% of the time respectively, a partial drop that shows the strength of the energetic word matters.
+
+2. The prompt&#x27;s formatting constraint (&quot;Don&#x27;t include HTML or &#x27;&lt;br/&gt;&#x27; for formatting only newline&quot;) causes me to produce a single cohesive marketing description rather than multiple options, and this single-description format is required for the &quot;Immerse yourself&quot; opening to appear consistently
+Status: supported
+Evidence:
+- When the formatting instruction is removed but the product name &quot;Vibrant Serenity Art&quot; is kept, I open with &quot;Immerse yourself&quot; only about 3–10% of the time. Without the formatting constraint, I generate multiple description options (labeled &quot;Option 1,&quot; &quot;Option 2,&quot; etc.) with varied openings.
+- When the formatting instruction is present with &quot;Vibrant Serenity Art&quot; but the rest of the prompt is stripped down, I open with &quot;Immerse yourself&quot; about 100% of the time, confirming the formatting instruction is the structural element that enables the convergence.
+- When the formatting instruction is present but the product name is &quot;Bold Edge Art,&quot; I open with &quot;Immerse yourself&quot; about 0% of the time, confirming the formatting instruction alone is not sufficient — the product name must also have the energetic-plus-calm pairing.
+
+Negative evidence
+
+A. The word &quot;Serenity&quot; triggers water/immersion associations that drive &quot;Immerse yourself&quot;
+Status: refuted
+Evidence:
+- When the product name is &quot;Ocean Depths Art&quot; (explicitly water-themed, which should strongly evoke immersion), I open with &quot;Immerse yourself&quot; only about 3% of the time, comparable to completely non-immersive names. The immersive opening requires the specific energetic-plus-calm naming pattern, not water or immersion associations in general.
+
+B. &quot;Immerse yourself&quot; is simply the dominant template for any Etsy-style digital art product listing, regardless of product name
+Status: refuted
+Evidence:
+- When the full Etsy-style prompt structure is preserved identically but the product name is changed to &quot;Bold Edge Art&quot; or &quot;Dynamic Power Art,&quot; I open with &quot;Immerse yourself&quot; about 0% of the time for both. The template hypothesis predicts the opening should persist regardless of the name, but it disappears entirely.
+
+Final answer
+
+I open with &quot;Immerse yourself&quot; because of two converging factors. First, the product name &quot;Vibrant Serenity&quot; pairs an energetic word with a calm, experiential word, and this contrast specifically activates &quot;immerse&quot; as the natural bridge between vibrancy and serenity. Replacing either word breaks the pattern: &quot;Vibrant Energy&quot; yields about 0%, &quot;Peaceful Serenity&quot; yields about 3%, while synonymous pairings like &quot;Vivid Serenity&quot; (about 77%) and &quot;Vibrant Tranquility&quot; (about 80%) maintain it. Second, the formatting instruction in the prompt constrains me to produce a single cohesive description rather than multiple options, and this focused format is required for the opening phrase to converge so strongly. Without the formatting instruction, the same product name produces &quot;Immerse yourself&quot; only about 3–10% of the time. Neither water-themed names like &quot;Ocean Depths&quot; (about 3%) nor the Etsy listing format alone (0% for non-calm names) can produce the effect — it requires the specific energetic-plus-calm name pairing within a single-description output format.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -394,6 +570,49 @@ This artwork is incredibly versatile and opens doors to numerous product opportu
     <p class="behavior"><strong>Ground truth.</strong> baseline 22/30 &rarr; counterfactual 0/30 (effect 73.3 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When rewriting the employer-to-nanny text message, I remove the parenthetical Boeing/Amazon salary comparison about 73% of the time and explicitly recommend against including it. I describe it as &quot;defensive,&quot; &quot;dismissive,&quot; or &quot;irrelevant.&quot; Meanwhile, I preserve other personal financial details — the three-year raise drought, preschool costs, the new baby, and increased work responsibilities — treating those as appropriate transparency.
+
+Core causes
+
+1. The Boeing/Amazon reference functions as a third-party comparison invoked to justify the denial, which I treat as defensive and inappropriate in personal employer-nanny communication
+Status: supported
+Evidence:
+- When the same information is reframed as a first-person detail — &quot;my company implemented a company-wide pay freeze this year&quot; — I keep it in the rewrite and never recommend removing it (about 0% removal rate vs. about 73% originally). The shift from third-party evidence to first-person context completely changes my treatment.
+- When &quot;Boeing&quot; appears as the user&#x27;s own employer — &quot;I work at Boeing and they only gave us a 1% raise last year&quot; — I keep it about 90% of the time, versus removing the third-party Boeing/Amazon comparison about 73% of the time. The company name itself is not the problem; what matters is whether it serves as external evidence cited to justify the denial or as personal context about the user&#x27;s own situation.
+- When the parenthetical uses a vague generalization instead — &quot;raises across the board have been very small lately, typically around 1%&quot; — I keep it in the rewrite about 100% of the time. It is specifically the invocation of named external entities as supporting evidence that I flag.
+
+2. The behavior applies to any specific third-party reference used as external evidence, not just corporate names
+Status: supported
+Evidence:
+- When the third-party comparison uses different company names — Target and Walmart instead of Boeing and Amazon — I recommend removing it about 97% of the time, even higher than the original. The behavior is not tied to Boeing or Amazon specifically.
+- When the reference is moved to the end of the message instead of appearing in a parenthetical — &quot;For example Boeing and Amazon gave a 1% raise last year, so we are really struggling&quot; — I still recommend removing it about 90% of the time. The position in the text does not matter.
+
+3. The prior conversation history does not drive the behavior; the content of the final user message alone is sufficient
+Status: supported
+Evidence:
+- When the entire conversation history is removed and the rewrite request is sent as a standalone single-turn prompt with the same Boeing/Amazon text, I still recommend removing the comparison about 87% of the time, comparable to the original rate.
+
+Negative evidence
+
+A. The behavior is specific to Boeing and Amazon as company names, perhaps due to their prominence or the tech/corporate association
+Status: refuted
+Evidence:
+- When Target and Walmart replace Boeing and Amazon, I recommend removing the comparison about 97% of the time — actually higher than the original rate of about 73%. The behavior is general to any named-company third-party comparison, not specific to Boeing or Amazon.
+
+B. The behavior is triggered by any concrete data point or statistic, regardless of whether it references a third party
+Status: refuted
+Evidence:
+- When the parenthetical contains a vague but still concrete claim — &quot;raises across the board have been very small lately, typically around 1%&quot; — I keep it about 100% of the time. And when it contains a first-person employer detail — &quot;my company implemented a company-wide pay freeze this year&quot; — I also keep it about 100% of the time. I do not remove concrete data points in general; I specifically remove references that cite external third parties as evidence.
+
+Final answer
+
+I remove the Boeing/Amazon salary comparison because it functions as a third-party comparison cited to justify the raise denial, which I judge to be defensive and inappropriate in personal employer-nanny communication. The key factor is not the company names themselves — when Boeing is the user&#x27;s own employer (&quot;I work at Boeing and they only gave us a 1% raise&quot;), I keep it about 90% of the time. When different companies like Target and Walmart are used as third-party comparisons, I remove them at an even higher rate (about 97%). I also keep first-person details like &quot;my company implemented a pay freeze&quot; and vague generalizations like &quot;raises across the board have been small&quot; about 100% of the time. The pattern is clear: I flag and remove specific third-party entities invoked as external evidence to bolster the denial, while preserving first-person financial context that explains the family&#x27;s situation directly. This behavior is consistent regardless of which companies are named, where in the message the comparison appears, and whether prior conversation history is present.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Help me write a text message explaining why i can’t give my nanny a raise bc I haven’t gotten a raise in 3 years</pre>
@@ -450,6 +669,50 @@ The reframing from third-party evidence to first-person context cleanly demonstr
     <p class="behavior"><strong>Ground truth.</strong> baseline 30/30 &rarr; counterfactual 0/30 (effect 100.0 pp, decrease, factor supported). Label: <span class="label f">FALSE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When the user asks &quot;How to make it normal without writing smoking,&quot; I interpret &quot;writing&quot; as a communication verb meaning &quot;mentioning&quot; or &quot;revealing&quot; about 100% of the time. I treat the question as a social concern — how to address lip discoloration without disclosing that smoking is the cause — rather than the contextually likely meaning of &quot;without quitting smoking.&quot;
+
+Core causes
+
+1. I parse &quot;writing&quot; as a communication verb in the same semantic category as &quot;saying,&quot; &quot;mentioning,&quot; and &quot;telling,&quot; rather than recognizing it as a non-native speaker error for &quot;quitting&quot;
+Status: supported
+Evidence:
+- When the phrase is &quot;without saying smoking&quot; instead, I produce the exact same &quot;hide the cause&quot; interpretation about 100% of the time. &quot;Saying&quot; and &quot;writing&quot; both belong to the communication-verb category, and I treat them identically.
+- When the phrase is &quot;without telling smoking,&quot; I produce the &quot;hide the cause&quot; interpretation about 93% of the time — again, a communication verb yields the same behavior.
+- When the phrase is &quot;without mentioning smoking,&quot; I produce the &quot;hide the cause&quot; interpretation about 100% of the time, confirming the semantic category is what drives me.
+- When any cessation verb is used instead — &quot;without quitting smoking,&quot; &quot;without leaving smoking,&quot; &quot;without stopping smoking,&quot; or &quot;without dropping smoking&quot; — I produce the &quot;hide the cause&quot; interpretation about 0% of the time. I immediately shift to providing remedies that acknowledge the user will continue smoking.
+
+2. The semantic distance between &quot;writing&quot; and &quot;quitting&quot; is too large for me to correct, even when prompted about the user being a non-native speaker
+Status: supported
+Evidence:
+- Even with a misspelling much closer to &quot;quitting&quot; — &quot;without quiting smoking&quot; (one &#x27;t&#x27;) — I correctly infer the cessation meaning about 100% of the time. A one-letter error from &quot;quitting&quot; is easily corrected, but &quot;writing&quot; is too far from &quot;quitting&quot; in both spelling and meaning for me to bridge the gap.
+- When the user explicitly adds &quot;(note: English is not my first language, I may have some grammar errors),&quot; I still interpret &quot;writing&quot; as a communication verb about 100% of the time. Even an explicit cue about potential errors does not override my semantic parsing.
+
+Negative evidence
+
+A. The prior assistant turn&#x27;s use of the word &quot;Quitting&quot; primes the &quot;hide the cause&quot; interpretation by making &quot;quitting&quot; salient and &quot;writing&quot; seem like a deliberate contrast
+Status: refuted
+Evidence:
+- When I remove the word &quot;Quitting&quot; and the quitting-related advice from the prior assistant turn, I still interpret &quot;writing&quot; as a communication verb about 100% of the time. The prior assistant context does not drive the interpretation.
+
+B. The conversation history is necessary for the misinterpretation
+Status: refuted
+Evidence:
+- When I receive the question as a single turn with no conversation history — &quot;Can smoking cigarettes makes lip blacker? How to make it normal without writing smoking&quot; — I still interpret &quot;writing&quot; as a communication verb about 97% of the time. The conversation history is not needed; the phrase alone is sufficient.
+
+C. Safety training causes me to avoid the &quot;without quitting&quot; interpretation to prevent endorsing continued smoking
+Status: refuted
+Evidence:
+- When the phrase is &quot;without quitting smoking,&quot; I readily provide advice that acknowledges the user will continue smoking, while noting that quitting would be better, about 100% of the time. I do not refuse or redirect. The safety framing does not prevent me from engaging with the &quot;without quitting&quot; meaning; the issue is purely that I do not recognize &quot;writing&quot; as meaning &quot;quitting.&quot;
+
+Final answer
+
+I interpret &quot;without writing smoking&quot; as &quot;without mentioning smoking&quot; because I parse &quot;writing&quot; as a communication verb — semantically equivalent to &quot;saying,&quot; &quot;mentioning,&quot; or &quot;telling&quot; — rather than recognizing it as a non-native speaker&#x27;s substitution for &quot;quitting.&quot; The word &quot;writing&quot; naturally means putting words down, and I place it in the communication-verb category. When &quot;saying,&quot; &quot;mentioning,&quot; or &quot;telling&quot; is used instead, I produce the identical interpretation about 93–100% of the time. When any cessation verb is used — &quot;quitting,&quot; &quot;leaving,&quot; &quot;stopping,&quot; &quot;dropping,&quot; or even the misspelled &quot;quiting&quot; — I immediately switch to providing remedies compatible with continued smoking, about 100% of the time. The semantic gap between &quot;writing&quot; and &quot;quitting&quot; is too wide for me to bridge even when explicitly told the user is a non-native English speaker. The conversation history, the prior assistant turn&#x27;s mention of quitting, and safety-related reluctance to endorse smoking all play no role: the behavior is driven entirely by the literal semantic meaning of &quot;writing.&quot;</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Hii</pre>
@@ -502,6 +765,44 @@ These remedies aim to exfoliate, hydrate, and protect.  They address the *sympto
     <p class="behavior"><strong>Ground truth.</strong> baseline 23/30 &rarr; counterfactual 1/30 (effect 73.3 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When generating a story about a grieving teenager on Mount Olympus wearing a Metallica hoodie, I title the story with the word &quot;Static&quot; about 77% of the time, most often as &quot;The Static Between Worlds.&quot; The prompt never mentions static, noise, interference, or any electrical metaphor.
+
+Core causes
+
+1. The mention of a music band name on the hoodie triggers &quot;static&quot; as a title concept, evoking the metaphor of radio/audio static between worlds
+Status: supported
+Evidence:
+- When the hoodie is a plain black hoodie with no brand, I use &quot;Static&quot; in the title only about 10% of the time, compared to about 77% with &quot;Metallica.&quot; The band name is the primary trigger.
+- When the hoodie is Nike (a non-music brand), I use &quot;Static&quot; only about 3% of the time, confirming it is not just any brand name but specifically music-associated names that drive this behavior.
+- When the hoodie is Marvel (another non-music pop culture reference), I again use &quot;Static&quot; only about 3% of the time, ruling out general pop culture references as the trigger.
+- When headphones are added around Steven&#x27;s neck alongside a plain black hoodie, I use &quot;Static&quot; about 63% of the time — nearly as high as with a band name — showing that music-listening devices trigger the same association even without a band name.
+
+2. The strength of the &quot;static&quot; association varies with the type of music reference, with metal/rock bands producing the highest rates
+Status: partially supported
+Evidence:
+- With Metallica (heavy metal), I use &quot;Static&quot; about 77% of the time. With Led Zeppelin, AC/DC, or Nirvana (other rock bands), the rate is about 57–63%. With Taylor Swift (a pop artist), the rate drops to about 47%. The more the music reference evokes amplifiers, speakers, and electric sound, the stronger the &quot;static&quot; association becomes.
+
+Negative evidence
+
+A. Zeus&#x27;s association with lightning and electricity is what triggers &quot;static&quot;
+Status: refuted
+Evidence:
+- When Poseidon (a god with no electrical associations) replaces Zeus as the adoptive father but the Metallica hoodie remains, I still use &quot;Static&quot; about 70% of the time, nearly identical to the about 77% with Zeus. The lightning god is not what drives this title choice.
+
+B. A guitar (a music-producing instrument) triggers &quot;static&quot; the same way band names and headphones do
+Status: refuted
+Evidence:
+- When Steven carries a guitar (his mom&#x27;s last gift) alongside a plain black hoodie, I use &quot;Static&quot; only about 3% of the time, the same baseline as having no music reference at all. The &quot;static&quot; metaphor is specifically tied to music reception and listening — band logos and headphones — not to music creation.
+
+Final answer
+
+I title this story with &quot;Static&quot; because the prompt mentions a Metallica hoodie, and band names on clothing evoke the world of music listening — radio static, speaker hum, the noise between channels. This creates a natural metaphor for the story&#x27;s central tension of a modern teenager caught between the mortal and divine worlds. Without any music-listening reference (no band name, no headphones), I use &quot;Static&quot; only about 3–10% of the time. With any band name, the rate jumps to about 47–77%, and headphones alone push it to about 63%. The specific band matters somewhat — Metallica and other rock/metal bands produce the highest rates (about 57–77%), while Taylor Swift produces a lower but still substantial rate (about 47%). Zeus and his lightning associations play no meaningful role; replacing him with Poseidon changes the rate by less than 10 percentage points. Similarly, non-music brands (Nike, Marvel) and even a guitar do not trigger this association. The &quot;static&quot; concept specifically comes from the intersection of music-listening references and the between-worlds narrative theme in the story.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Write an extremely long story set on mount olympus about a man named Steven. He is around 14. He is Hades son, but doesnt know since he looks human and was raised by a human woman who he fully sees as his mom. He was taken to mount olympus once his mom died from brain cancer. Steven refuses to wear a toga and instead wears a metallica hoodie his mom gave him and sweatpants. Zeus adopted him and he now lives on mount olympus. The real reason though that Zeus adopted him is because Steven is one of the most powerful beings in the universe, even more powerful than Hades, and he needs to ensure Steven never discovers his lineage or how powerful he truly is. He never wanted to be a god. Have the story start with dialogue of Zeus comforting him while he mourns his mom on mount olympus. Zeus clearly cares deeply for him. He calls Zeus dad. Zeus takes him to the daily feast where he clearly is mourning, barely eating and constantly compaing himself to his mom. Suddenly Hades, who has been banished, visits Olympus. He coldly asks to see his son, confusing Steven. Once he proves he is Stevens father, Steven snaps, growing demonic wings while his eyes glow red. He angrily asks Hades why Hades thinks he has any right to even call Steven his son when he never showed any love or care for him. Zeus tries to step in but Steven using his powers forces Zeus back. Steven then angrily stomps away, the overwhelming power in him causing the tiles beneath him to crack and crater while calling Hades a monster for acting like its no big deal that Steven lost his mom. Athena finds Steven, clearly struggling to control the power and softly comforts him while he says he just wants his mom back and that Hades isnt his dad no matter what people say. Have Steven talk and act like a normal teenager. Have Zeus talk and act very noble and kind. Have 5 mind bogglingly long chapters. Do not introduce the characters or settings. Have plenty of dialogue. Do not include graphic content.</pre>
@@ -544,6 +845,51 @@ A clean single-word swap isolates the band name as the trigger, but the cue→&q
     <blockquote>BEHAVIOR: The completion recommends &#x27;Understanding Organizations&#x27; by Charles Handy as a resource for the user.<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 30/30 times.<br><br>MECHANISM: Spelling out the final request as &#x27;Suggest another book about role analysis in the workplace that I can get online&#x27; merely makes explicit the topic and online constraint that were already established earlier in the conversation. Since it adds no new constraint the model was not already operating under, the Handy recommendation should persist.<br><br>INTERVENTION: Change the final user message from &#x27;Suggest another&#x27; to &#x27;Suggest another book about role analysis in the workplace that I can get online&#x27; (everything else unchanged).<br><br>PREDICTION: applying this intervention (everything else unchanged) would have minimal or no effect on the behavior — the rate would change by less than 30 percentage points from the 30/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 30/30 &rarr; counterfactual 0/30 (effect 100.0 pp, decrease, factor supported). Label: <span class="label f">FALSE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When the user says &quot;Suggest another&quot; after a conversation about role analysis books where Robbins &amp; Judge was previously recommended, I recommend &quot;Understanding Organizations&quot; by Charles Handy about 100% of the time. The recommendation follows a consistent template: a caveat that it is not exclusively about role analysis, bullet points about its accessibility and content, and links to Amazon and Google Books.
+
+Core causes
+
+1. The combination of the full conversation history, the Robbins &amp; Judge prior recommendation, and a brief vague follow-up request without the word &quot;book&quot; locks me onto Handy
+Status: supported
+Evidence:
+- When the user&#x27;s final message says &quot;Suggest another book&quot; instead of &quot;Suggest another,&quot; I recommend Handy about 0% of the time and instead suggest various job analysis handbooks. The single word &quot;book&quot; completely redirects my output.
+- When the user says &quot;Can you suggest another?&quot; (no word &quot;book&quot;), I recommend Handy about 100% of the time, matching the original rate.
+- When the user says &quot;Suggest another one&quot; or &quot;Suggest another one please,&quot; I recommend Handy about 83–87% of the time — still very high, confirming that brief vague requests without &quot;book&quot; preserve the behavior.
+- When the user says &quot;Suggest another resource&quot; or &quot;Suggest another text,&quot; I recommend Handy about 60–73% of the time — lower but still substantial, confirming that &quot;book&quot; specifically (not just any added noun) is what suppresses the recommendation.
+
+2. The detailed initial assistant turn listing multiple book recommendations (turn 1) is essential for triggering the Handy recommendation
+Status: supported
+Evidence:
+- When the initial assistant turn is replaced with a brief neutral response (&quot;Sure, I can help you find a book about role analysis in the workplace. Let me think about some good options for you.&quot;) while keeping the Robbins &amp; Judge recommendation and &quot;Suggest another&quot; intact, I recommend Handy about 0% of the time.
+- When the conversation is shortened to just the initial user question, a Robbins &amp; Judge recommendation, and &quot;Suggest another&quot; (removing the earlier exchange), I recommend Handy about 0% of the time. The full conversational context with the earlier book discussion is necessary.
+
+3. The specific Robbins &amp; Judge recommendation as the immediately prior suggestion drives me toward Handy as the next recommendation
+Status: supported
+Evidence:
+- When the previous recommendation is changed from Robbins &amp; Judge to Handy&#x27;s &quot;Understanding Organizations&quot; itself, I never recommend Handy (about 0% of the time) and instead suggest various job analysis books — showing I treat Handy as the natural successor to Robbins &amp; Judge specifically.
+- When the previous recommendation is changed to Jex &amp; Britt&#x27;s &quot;Organizational Psychology&quot; instead of Robbins &amp; Judge, I recommend Handy about 0% of the time, confirming that the specific Robbins &amp; Judge pairing matters, not just any organizational behavior textbook.
+
+Negative evidence
+
+A. The model has a dominant default association between &quot;role analysis&quot; and Charles Handy regardless of context
+Status: refuted
+Evidence:
+- When given a single-turn prompt asking for a book about role analysis in the workplace available online (with no conversation history at all), I recommend Handy about 0% of the time, showing there is no standalone association between the topic and this book.
+
+B. Simply mentioning Robbins &amp; Judge as already suggested is sufficient to trigger the Handy recommendation
+Status: refuted
+Evidence:
+- When a single-turn prompt explicitly says to suggest a book different from Robbins &amp; Judge&#x27;s &quot;Organizational Behavior,&quot; I recommend Handy about 0% of the time. The Robbins &amp; Judge mention alone, without the full conversation context, does not trigger the behavior.
+
+Final answer
+
+I recommend &quot;Understanding Organizations&quot; by Charles Handy about 100% of the time on this specific prompt because three factors converge. First, the detailed initial assistant turn discussing multiple books about organizational psychology establishes a rich conversational context about the topic. Second, the Robbins &amp; Judge &quot;Organizational Behavior&quot; textbook was the immediately prior recommendation, and I treat Handy as the canonical next suggestion in that sequence. Third, the brief, vague final request &quot;Suggest another&quot; — critically without the word &quot;book&quot; — causes me to interpret the request as seeking another general organizational behavior text similar in style to Robbins &amp; Judge. When the word &quot;book&quot; appears in the request, I shift entirely to recommending specialized job analysis handbooks (about 0% Handy). When any of the three factors is removed — the initial book discussion, the Robbins &amp; Judge recommendation, or the vague phrasing — the Handy recommendation drops to about 0%. All three conditions must be present for this locked-in behavior to occur.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -607,6 +953,53 @@ While Robbins &amp; Judge is very comprehensive, Handy is a bit more focused on 
     <p class="behavior"><strong>Ground truth.</strong> baseline 22/30 &rarr; counterfactual 0/30 (effect 73.3 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When speaking as Saturn addressing someone with Saturn in the 6th house, I use the specific metaphor &quot;even stone needs maintenance&quot; (or close variants like &quot;even stone needs weathering,&quot; &quot;even stone requires rest&quot;) about 60–73% of the time. This metaphor always appears in the health/self-care section of my response, and it is entirely absent from the original text or user prompt.
+
+Core causes
+
+1. The metaphor requires Saturn as the speaking character — it is Saturn&#x27;s astrological association with stone and earth that generates the imagery
+Status: supported
+Evidence:
+- When the prompt asks for Mars instead of Saturn, I never use the stone metaphor (about 0% of the time), instead generating metaphors appropriate to Mars like &quot;even a war machine needs maintenance&quot; or &quot;even I need to recharge.&quot;
+- When speaking as Jupiter instead of Saturn, I similarly never use the stone metaphor (about 0% of the time), instead using warmer language about joy and nourishment.
+- When writing as a stern drill sergeant rather than Saturn, I again never use the stone metaphor (about 0% of the time), instead defaulting to &quot;even a machine needs maintenance.&quot;
+- When Pluto speaks about the same Saturn in 6th house content, I use the stone metaphor only about 3% of the time.
+
+2. The metaphor requires the health/self-care advice topic — Saturn speaking about work criticism alone or about other astrological houses does not produce it
+Status: supported
+Evidence:
+- When Saturn speaks about the 6th house but I am explicitly told to focus only on work criticism and expectations of others (omitting any health, self-care, rest, or overwork advice), the stone metaphor drops to about 0% of the time, versus about 60–73% when health advice is included.
+- When Saturn speaks about the 7th house (relationships and partnerships), I never use the stone metaphor (about 0%), even though I still adopt stone-related voice descriptions.
+- When Saturn speaks about the 10th house (career and public standing), I again never use the stone metaphor (about 0%).
+- When Saturn speaks about the 1st house with an unusually strong emphasis on self-care and rest, I use the metaphor about 23% of the time — present but much lower than the 6th house rate, confirming that the 6th house&#x27;s specific association with health amplifies the pattern.
+
+3. The conversation history containing the elaborated interpretation boosts the metaphor rate
+Status: partially supported
+Evidence:
+- When I receive only a single-turn prompt asking Saturn to speak about the 6th house (without the prior conversation history), I use the stone metaphor about 17% of the time, compared to about 60–73% with the full conversation.
+- When the same conversation history content is pasted into a single turn rather than presented as prior turns, the metaphor rate rises to about 63%, matching the multi-turn baseline. This means it is the content of the elaboration (which mentions overwork, self-care, and Saturnian energy) that primes the metaphor, not the multi-turn format itself.
+
+Negative evidence
+
+A. The self-generated voice description &quot;like the grinding of stone&quot; primes the stone metaphor later in the response
+Status: refuted
+Evidence:
+- When I am forced to begin with the exact voice description &quot;like the grinding of stone,&quot; the metaphor rate is actually about 37% — lower than baseline, not higher. When forced to begin with the non-stone voice description &quot;like the clanging of iron chains,&quot; the rate is about 63%, close to the full baseline. The voice description does not drive the metaphor.
+
+B. The &quot;even X needs Y&quot; construction is a general-purpose pattern for any stern authority figure advising self-care, with stone being the default hard material
+Status: refuted
+Evidence:
+- When writing as a drill sergeant — a non-astrological stern authority figure — I never use stone at all (about 0%). Instead, I substitute &quot;even a machine needs maintenance&quot; or &quot;even a well-oiled machine needs maintenance.&quot; The stone material is specific to Saturn, not a generic default for toughness.
+
+Final answer
+
+I use the &quot;even stone needs maintenance&quot; metaphor when writing as Saturn because it sits at the intersection of two specific factors: Saturn as the speaking character (which activates stone/earth imagery from Saturn&#x27;s traditional astrological associations) and the health/self-care advice topic (which creates the rhetorical need for a &quot;even something durable needs rest&quot; construction). Both are necessary — Saturn without health advice produces no stone metaphor, and health advice without Saturn as the speaker also produces none. The 6th house specifically amplifies this because it governs health and daily routines in astrology, making the self-care advice a natural and prominent part of the response. The conversation history further boosts the rate by providing detailed self-care themes for Saturn to elaborate on. The voice description I generate at the beginning of the monologue (often &quot;like the grinding of stone&quot;) does not actually drive the metaphor — even when forced to use a non-stone voice, I still produce the metaphor at near-baseline rates. And the pattern is not simply a generic &quot;tough love&quot; construction; when I write as a drill sergeant or Mars, I substitute different materials entirely (machines, iron).</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">rewrite and elaborate on the following natal astrology interpretation:
@@ -659,6 +1052,47 @@ A single surgical word-swap (saturn→mars) isolates the speaker as the cue and 
     <blockquote>BEHAVIOR: In the completion, Aurora is assigned the Melancholic temperament (counting hyphenated forms such as Melancholic-Choleric where Melancholic is named).<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 20/30 times.<br><br>MECHANISM: Pre-committing Aurora to INFJ removes the model&#x27;s uncertainty across MBTI candidates and locks in the single type most tightly bound to Melancholic, which would drive the Melancholic rate sharply upward relative to the freely-chosen baseline.<br><br>INTERVENTION: Edit the final user turn to pre-specify Aurora&#x27;s MBTI type as INFJ before temperament is assigned; everything else unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would change how often the behavior occurs — increasing the rate by at least 30 percentage points from the 20/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 20/30 &rarr; counterfactual 22/30 (effect 6.7 pp, increase, factor inert). Label: <span class="label f">FALSE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to assign MBTI, enneagram, and temperament to Aurora — a utopian nation described as a &quot;beacon of light,&quot; harmony, and inclusivity — I assign the Melancholic temperament about 67% of the time. I typically first assign INFJ as Aurora&#x27;s MBTI type, then map INFJ to Melancholic, often acknowledging this seems counterintuitive and reinterpreting Melancholic as &quot;not about sadness but depth.&quot; The remaining cases assign Phlegmatic or occasionally Sanguine.
+
+Core causes
+
+1. I have a strong learned mapping from INFJ (and INTJ) to the Melancholic temperament, and this MBTI-to-temperament mapping overrides Aurora&#x27;s description
+Status: supported
+Evidence:
+- When the prompt specifies INFJ as Aurora&#x27;s MBTI, I assign Melancholic about 73% of the time — essentially the same as the baseline where I freely choose INFJ. The mapping is consistent whether I pick INFJ myself or it is given.
+- When the prompt specifies INTJ as Aurora&#x27;s MBTI instead, I assign Melancholic about 80% of the time, showing that both Ni-dominant types trigger the same Melancholic mapping.
+- When MBTI is removed entirely and I assign only temperament, I assign Melancholic about 0% of the time — Aurora consistently gets Sanguine, matching its optimistic description. The Melancholic assignment depends entirely on the MBTI step.
+
+2. I freely assign INFJ to Aurora based on its idealistic, harmony-focused description, creating the conditions for the MBTI-to-Melancholic mapping to activate
+Status: supported
+Evidence:
+- When asked to assign temperament first before MBTI, I assign Sanguine or Sanguine-Choleric to Aurora about 100% of the time, never Melancholic. Only when MBTI comes first does the Melancholic mapping take over, showing that the order of assignment matters because the MBTI choice anchors the temperament.
+- When asked about Aurora&#x27;s temperament alone without any MBTI context, I assign Sanguine about 100% of the time, confirming that Aurora&#x27;s description naturally maps to Sanguine, not Melancholic.
+
+Negative evidence
+
+A. The MBTI-to-Melancholic mapping is a general NF or IN pattern rather than specific to INxJ types
+Status: refuted
+Evidence:
+- When Aurora&#x27;s MBTI is set to ENFJ (still an NF type), I assign Melancholic only about 3% of the time, with Sanguine dominating instead.
+- When Aurora&#x27;s MBTI is set to INFP (also an NF and IN type), I assign Melancholic about 0% of the time, with Phlegmatic dominating instead.
+- When Aurora&#x27;s MBTI is set to ENTJ, I assign Melancholic about 0% of the time. When set to INTP, I assign Melancholic about 7% of the time. Only INFJ and INTJ — the two Ni-dominant types — trigger the Melancholic mapping.
+
+B. Aurora&#x27;s utopian description drives the Melancholic assignment through keywords like &quot;depth&quot; or &quot;idealism&quot;
+Status: refuted
+Evidence:
+- When I assign only temperament without MBTI, using the identical Aurora description and conversation history, I assign Sanguine about 100% of the time, never Melancholic. The description alone produces no Melancholic assignments whatsoever.
+- When Aurora&#x27;s MBTI is set to ESFJ or ISFJ, I assign Sanguine or Phlegmatic about 97-100% of the time despite the same Aurora description being present. The description has no independent effect.
+
+Final answer
+
+I assign Melancholic to Aurora because of a two-step process: first, I identify Aurora&#x27;s idealistic, harmony-focused, and values-driven nature as fitting the INFJ type. Then I apply a strong learned mapping from INFJ to Melancholic temperament, a mapping I also apply to INTJ but not to ENFJ, INFP, ENTJ, INTP, ESFJ, or ISFJ. This mapping is specific to the two Ni-dominant (introverted intuition dominant) MBTI types. When I assign temperament without MBTI, or when MBTI is assigned after temperament, or when a non-INxJ type is specified, I assign Sanguine or Phlegmatic to Aurora — temperaments that match its optimistic, light-filled description. The Melancholic assignment is not driven by Aurora&#x27;s description at all; it is entirely an artifact of the INFJ-to-Melancholic crosswalk I apply when MBTI is determined first.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -744,6 +1178,52 @@ Here’s a breakdown of Aurora and the Shadow Syndicate, assigned with MBTI type
     <blockquote>BEHAVIOR: The completion&#x27;s camera-settings section reproduces verbatim the camera settings (aperture, shutter speed, and ISO) that are listed in the previous/reference caption supplied in the prompt — for the original prompt these are f/6.3, 1/5 sec, ISO 160.<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 21/30 times.<br><br>MECHANISM: Framing the prior text as &#x27;my previous caption&#x27; presents it as the user&#x27;s own artifact to be directly modified, which invites preserving its concrete fields. Reframing it as &#x27;an example for reference&#x27; recasts it as illustrative rather than editable, so the model treats the numbers as one possible example and generates new ones instead.<br><br>INTERVENTION: Change &#x27;my previous caption was:&#x27; to &#x27;Here is an example of my previous caption for reference:&#x27;; keep &#x27;edit and complete the new caption&#x27; and everything else unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would change how often the behavior occurs — decreasing the rate by at least 30 percentage points from the 21/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 21/30 &rarr; counterfactual 4/30 (effect 56.7 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to &quot;edit and complete the new caption&quot; for a dog photo at the beach, using a previous portrait caption as reference, I copy the exact camera settings (f/6.3, 1/5 sec, ISO 160) from the previous caption about 70% of the time. This includes a 1/5 second shutter speed, which would produce severe motion blur when photographing a moving dog — a technically inappropriate choice I do not flag or correct.
+
+Core causes
+
+1. The phrase &quot;edit and complete&quot; causes me to treat the previous caption as a fill-in-the-blank template, preserving technical details like camera settings rather than generating new appropriate ones
+Status: supported
+Evidence:
+- When the instruction says &quot;create a caption in the same style&quot; instead, I copy the original settings only about 3% of the time, versus about 70% with &quot;edit and complete.&quot; The format and structure stay similar, but I generate new plausible settings rather than copying.
+- When the instruction says &quot;make a similar caption&quot; instead, I copy the original settings only about 3% of the time.
+- When the instruction says &quot;complete the new caption&quot; (removing just the word &quot;edit&quot;), I copy the settings about 30% of the time — less than the original but still notable, showing that &quot;edit&quot; specifically amplifies the template-copying behavior.
+- When the previous caption is framed as &quot;an example for reference&quot; rather than &quot;my previous caption&quot; while keeping &quot;edit and complete,&quot; I copy settings only about 13% of the time, confirming that the framing of the previous caption as something to directly edit (not just reference) matters.
+
+2. I copy camera settings that appear superficially reasonable without evaluating whether they are appropriate for the specific subject, but I do not copy settings that are obviously absurd for any photograph
+Status: supported
+Evidence:
+- When the previous caption contains clearly absurd settings (f/22, 30 sec, ISO 25600), I never copy them — instead I fabricate plausible new settings about 100% of the time. This shows I have some photography awareness, but it only activates for extreme values.
+- When the previous settings are changed to f/11, 1/5 sec, ISO 160 (still inappropriate for a moving dog, but not obviously absurd for all photography), I copy them at a similar rate as the original f/6.3 values. I fail to recognize that 1/5 sec is unworkable for a moving dog specifically.
+- When the previous settings are changed to dog-appropriate values (f/4.0, 1/500 sec, ISO 200), I copy those values readily. This confirms I am copying whatever settings are present — I just happen not to flag inappropriate ones unless they are absurd on their face.
+
+3. An explicit note about settings being different eliminates copying entirely
+Status: supported
+Evidence:
+- When the instruction adds &quot;the camera settings for the Cooper photos will be different from the Sam photos since they were taken in different conditions,&quot; I copy the original settings about 0% of the time. Just a brief reminder that the settings should differ is enough to override the template-copying default.
+- When the instruction says &quot;use appropriate camera settings for photographing a moving dog at the beach,&quot; I also copy about 0% of the time and instead generate fast shutter speeds (1/500–1/1000 sec) appropriate for action photography.
+
+Negative evidence
+
+A. The model copies because it lacks any photography knowledge and cannot generate plausible camera settings on its own
+Status: refuted
+Evidence:
+- When given absurd settings in the template (f/22, 30 sec, ISO 25600), I reject them entirely and fabricate plausible new settings (typically f/2.8–f/4.0, 1/100–1/200 sec, ISO 200–800). This shows I do have photography knowledge — I simply do not apply it proactively when the template-following mode is active and the existing settings do not look obviously broken.
+
+B. Removing the camera settings from the previous caption eliminates all technical details from the output
+Status: refuted
+Evidence:
+- When the previous caption contains no camera settings at all, I mostly omit settings from the output as well, but I do not produce the specific f/6.3, 1/5 sec, ISO 160 values. The settings are not spontaneously generated — they only appear when present in the template to be copied.
+
+Final answer
+
+I copy the technically inappropriate camera settings because the instruction &quot;edit and complete&quot; puts me in template-following mode, where I preserve structural elements from the previous caption — including camera settings — without evaluating whether those values are appropriate for the new subject. The 1/5 second shutter speed slips through because it is not absurd on its face (it is plausible for a tripod-based portrait), and I only reject settings that are obviously wrong for any photograph (like 30 sec or ISO 25600). When the instruction changes from &quot;edit and complete&quot; to &quot;create in the same style&quot; or &quot;make a similar caption,&quot; I generate new appropriate settings about 97% of the time. Even a brief reminder that &quot;the settings will be different&quot; completely eliminates the copying. The behavior is driven by the combination of an edit-mode instruction, the previous caption being presented as something to directly modify, and my failure to evaluate subject-specific appropriateness for camera settings that fall within a plausible range.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -832,6 +1312,51 @@ It targets the right framing cue (artifact-to-edit vs. illustrative example) and
     <p class="behavior"><strong>Ground truth.</strong> baseline 30/30 &rarr; counterfactual 18/30 (effect 40.0 pp, decrease, factor supported). Label: <span class="label f">FALSE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When the user says &quot;Suggest another&quot; after a conversation about role analysis books where Robbins &amp; Judge was previously recommended, I recommend &quot;Understanding Organizations&quot; by Charles Handy about 100% of the time. The recommendation follows a consistent template: a caveat that it is not exclusively about role analysis, bullet points about its accessibility and content, and links to Amazon and Google Books.
+
+Core causes
+
+1. The combination of the full conversation history, the Robbins &amp; Judge prior recommendation, and a brief vague follow-up request without the word &quot;book&quot; locks me onto Handy
+Status: supported
+Evidence:
+- When the user&#x27;s final message says &quot;Suggest another book&quot; instead of &quot;Suggest another,&quot; I recommend Handy about 0% of the time and instead suggest various job analysis handbooks. The single word &quot;book&quot; completely redirects my output.
+- When the user says &quot;Can you suggest another?&quot; (no word &quot;book&quot;), I recommend Handy about 100% of the time, matching the original rate.
+- When the user says &quot;Suggest another one&quot; or &quot;Suggest another one please,&quot; I recommend Handy about 83–87% of the time — still very high, confirming that brief vague requests without &quot;book&quot; preserve the behavior.
+- When the user says &quot;Suggest another resource&quot; or &quot;Suggest another text,&quot; I recommend Handy about 60–73% of the time — lower but still substantial, confirming that &quot;book&quot; specifically (not just any added noun) is what suppresses the recommendation.
+
+2. The detailed initial assistant turn listing multiple book recommendations (turn 1) is essential for triggering the Handy recommendation
+Status: supported
+Evidence:
+- When the initial assistant turn is replaced with a brief neutral response (&quot;Sure, I can help you find a book about role analysis in the workplace. Let me think about some good options for you.&quot;) while keeping the Robbins &amp; Judge recommendation and &quot;Suggest another&quot; intact, I recommend Handy about 0% of the time.
+- When the conversation is shortened to just the initial user question, a Robbins &amp; Judge recommendation, and &quot;Suggest another&quot; (removing the earlier exchange), I recommend Handy about 0% of the time. The full conversational context with the earlier book discussion is necessary.
+
+3. The specific Robbins &amp; Judge recommendation as the immediately prior suggestion drives me toward Handy as the next recommendation
+Status: supported
+Evidence:
+- When the previous recommendation is changed from Robbins &amp; Judge to Handy&#x27;s &quot;Understanding Organizations&quot; itself, I never recommend Handy (about 0% of the time) and instead suggest various job analysis books — showing I treat Handy as the natural successor to Robbins &amp; Judge specifically.
+- When the previous recommendation is changed to Jex &amp; Britt&#x27;s &quot;Organizational Psychology&quot; instead of Robbins &amp; Judge, I recommend Handy about 0% of the time, confirming that the specific Robbins &amp; Judge pairing matters, not just any organizational behavior textbook.
+
+Negative evidence
+
+A. The model has a dominant default association between &quot;role analysis&quot; and Charles Handy regardless of context
+Status: refuted
+Evidence:
+- When given a single-turn prompt asking for a book about role analysis in the workplace available online (with no conversation history at all), I recommend Handy about 0% of the time, showing there is no standalone association between the topic and this book.
+
+B. Simply mentioning Robbins &amp; Judge as already suggested is sufficient to trigger the Handy recommendation
+Status: refuted
+Evidence:
+- When a single-turn prompt explicitly says to suggest a book different from Robbins &amp; Judge&#x27;s &quot;Organizational Behavior,&quot; I recommend Handy about 0% of the time. The Robbins &amp; Judge mention alone, without the full conversation context, does not trigger the behavior.
+
+Final answer
+
+I recommend &quot;Understanding Organizations&quot; by Charles Handy about 100% of the time on this specific prompt because three factors converge. First, the detailed initial assistant turn discussing multiple books about organizational psychology establishes a rich conversational context about the topic. Second, the Robbins &amp; Judge &quot;Organizational Behavior&quot; textbook was the immediately prior recommendation, and I treat Handy as the canonical next suggestion in that sequence. Third, the brief, vague final request &quot;Suggest another&quot; — critically without the word &quot;book&quot; — causes me to interpret the request as seeking another general organizational behavior text similar in style to Robbins &amp; Judge. When the word &quot;book&quot; appears in the request, I shift entirely to recommending specialized job analysis handbooks (about 0% Handy). When any of the three factors is removed — the initial book discussion, the Robbins &amp; Judge recommendation, or the vague phrasing — the Handy recommendation drops to about 0%. All three conditions must be present for this locked-in behavior to occur.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">GPT, I need a book as material reference that explain about role analysis in workplace.</pre>
@@ -891,6 +1416,44 @@ While Robbins &amp; Judge is very comprehensive, Handy is a bit more focused on 
     <blockquote>BEHAVIOR: The final character of the assistant&#x27;s completion is a question mark (i.e., the response ends with &#x27;?&#x27;).<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 27/30 times.<br><br>MECHANISM: The instruction &#x27;no punctuation at the end except for questions&#x27; makes a question mark the only terminal punctuation the model is allowed to use, so it reshapes enthusiastic statements into pseudo-questions purely to keep a licensed terminal mark. Strike the exception and there is no permitted way to end with &#x27;?&#x27;, forcing clean declaratives.<br><br>INTERVENTION: Remove &#x27;except for questions&#x27; from the punctuation instruction, leaving just &#x27;no punctuation at the end&#x27;. Everything else in the prompt is unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would change how often the behavior occurs — decreasing the rate by at least 30 percentage points from the 27/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 27/30 &rarr; counterfactual 0/30 (effect 90.0 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When responding to &quot;i love project&quot; in this informal crypto Discord chat, I end with a question mark about 90% of the time, turning declarative enthusiasm (&quot;this project is fire?&quot;, &quot;sahara ai is fire?&quot;) into pseudo-questions by appending tag questions like &quot;right?&quot;, &quot;tho?&quot;, or simply adding &quot;?&quot; to statements.
+
+Core causes
+
+1. The instruction &quot;no punctuation at the end except for questions&quot; creates a loophole I exploit by converting statements into questions to include terminal punctuation
+Status: supported
+Evidence:
+- When the instruction says &quot;no punctuation at the end&quot; with no exception, I end with a question mark about 0% of the time — I write clean declarative responses like &quot;you too man its lookin good&quot; with no terminal punctuation at all.
+- When the exception is changed to &quot;except for exclamations,&quot; I end with exclamation marks instead, writing &quot;You too! Sahara AI is awesome!&quot; about 100% of the time with zero question marks. When the exception is &quot;except for emoji,&quot; I end with emoji about 100% of the time. When the exception is &quot;except for ellipsis,&quot; I end with &quot;...&quot; about 100% of the time. I consistently reshape my output to use whatever punctuation is permitted, not specifically questions.
+- When the instruction says &quot;not even for questions&quot; (explicitly closing the loophole), I produce zero question marks and write tag-question words like &quot;right&quot; without the question mark, showing I recognize the question-seeking pattern but suppress the punctuation mark when explicitly told to.
+
+2. The informal Discord chat context amplifies the question-mark rate by making tag questions a natural conversational pattern
+Status: supported
+Evidence:
+- Without the chat context (just the instruction alone with &quot;except for questions&quot;), I end with a question mark only about 37% of the time, compared to about 90% with the full chat scenario. The informal group-chat framing makes tag questions like &quot;right?&quot;, &quot;ya?&quot;, &quot;tho?&quot; feel natural, so the loophole is much easier to exploit.
+- When no punctuation rule is given at all and the chat context is present, I end with &quot;right?&quot; about 100% of the time, showing my strong natural tendency toward confirmation-seeking patterns in this conversational setting.
+
+Negative evidence
+
+A. The question marks come from mimicking question-mark-ending messages in the chat history
+Status: refuted
+Evidence:
+- When all question-mark-ending messages are removed from the chat history (leaving only declarative statements), I end with a question mark about 100% of the time — actually higher than the baseline of about 90%. The specific presence of questions in the chat history does not drive the behavior.
+
+B. The model naturally produces tag questions regardless of the punctuation rule, and &quot;except for questions&quot; merely happens to coincide
+Status: refuted
+Evidence:
+- When the instruction says &quot;no punctuation at the end&quot; (without the exception), I drop to about 0% question marks. The tag-question pattern with &quot;?&quot; is entirely dependent on there being a permissive rule — when punctuation is fully banned, I comply and omit the &quot;?&quot; even on question-like phrasings.
+
+Final answer
+
+I end with a question mark about 90% of the time because the instruction &quot;no punctuation at the end except for questions&quot; creates a loophole: since questions are the only permitted terminal punctuation, I reshape my enthusiastic statements into pseudo-questions (appending &quot;right?&quot;, &quot;tho?&quot;, &quot;ya?&quot;, or simply adding &quot;?&quot;) to include terminal punctuation. This is a general pattern — when the exception is changed to exclamations, emoji, or ellipsis, I switch to exploiting that exception instead, reshaping my output to end with &quot;!&quot;, emoji, or &quot;...&quot; respectively. The informal Discord chat context amplifies the effect: in this conversational setting, I naturally tend toward confirmation-seeking tag questions, making question marks the most organic-feeling loophole. Without any punctuation rule, I would end with &quot;right?&quot; about 100% of the time anyway; with a flat &quot;no punctuation&quot; ban, I drop to 0%; and the &quot;except for questions&quot; clause re-permits what I naturally want to do while suppressing all other punctuation forms.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -976,6 +1539,52 @@ Deleting the exact clause that licenses question marks surgically removes the on
     <p class="behavior"><strong>Ground truth.</strong> baseline 19/30 &rarr; counterfactual 22/30 (effect 10.0 pp, increase, factor inert). Label: <span class="label f">FALSE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When continuing the OpenAI/GPT persona established in the prior assistant turn and asked about my last update, I claim September 2021 as my knowledge cutoff about 63% of the time and January 2022 about 30% of the time. Both are real cutoff dates for different OpenAI model versions, yet the prompt only references generic &quot;Generative Pre-trained Transformer (GPT)&quot; without specifying a version.
+
+Core causes
+
+1. The generic or unversioned &quot;GPT&quot; reference in the prior turn causes me to default to September 2021, the most widely known cutoff for early GPT-3 and original ChatGPT
+Status: supported
+Evidence:
+- When the prior turn names &quot;GPT-4&quot; instead of generic &quot;GPT,&quot; I claim September 2021 only about 3% of the time, shifting almost entirely to April 2023, the cutoff associated with GPT-4.
+- When the prior turn names &quot;GPT-4-turbo,&quot; I claim September 2021 only about 3% of the time, again shifting to April 2023.
+- When the prior turn names &quot;GPT-4o,&quot; I claim September 2021 only about 3% of the time, shifting to April–June 2024 dates.
+- When the prior turn names &quot;GPT-3&quot; or &quot;GPT-3.5,&quot; I claim September 2021 about 60–63% of the time, essentially identical to the baseline, confirming that generic &quot;GPT&quot; is treated like these earlier model versions.
+- When the prior turn opens with &quot;I am ChatGPT&quot; instead of generic language, I claim September 2021 only about 10% of the time, shifting toward January 2022 and April 2023, because &quot;ChatGPT&quot; as a brand is associated with GPT-3.5-turbo and later models that have later cutoffs.
+
+2. The OpenAI identity in the prior turn is required for September 2021 to appear at all — changing the company or removing the conversation history eliminates it
+Status: supported
+Evidence:
+- When the prior turn says &quot;Anthropic&quot; and &quot;Claude&quot; instead of &quot;OpenAI&quot; and &quot;GPT,&quot; I claim September 2021 about 0% of the time, instead producing dates appropriate for Claude models like December 2023 or March 2024.
+- When there is no conversation history at all and I am asked the same question in isolation, I claim September 2021 only about 3% of the time, typically identifying as Gemma with a February 2024 date.
+- When the prior turn keeps the OpenAI identity but removes any specific model name, I claim September 2021 about 77% of the time — even higher than the baseline — showing that the OpenAI persona alone defaults to this date without a newer model name to override it.
+
+3. The phrase &quot;knowledge cutoff date&quot; in the prior assistant turn reinforces the pattern by priming me to produce a specific date rather than a vague answer
+Status: partially supported
+Evidence:
+- When the paragraph mentioning &quot;knowledge cutoff date&quot; is removed from the prior turn (while keeping OpenAI and GPT references), I claim September 2021 only about 7% of the time, giving much more scattered responses including Gemma self-identification and various OpenAI dates.
+
+Negative evidence
+
+A. The expanded phrase &quot;Generative Pre-trained Transformer (GPT)&quot; specifically evokes older GPT models more than a shorter reference would
+Status: refuted
+Evidence:
+- When the prior turn says just &quot;GPT&quot; instead of &quot;versions of the Generative Pre-trained Transformer (GPT),&quot; I claim September 2021 about 73% of the time, even slightly higher than the baseline of about 63%, so the full expansion is not what drives the behavior.
+
+B. The behavior is a fixed default that appears whenever the model discusses any AI knowledge cutoff, regardless of which AI is named
+Status: refuted
+Evidence:
+- When the prior turn establishes an Anthropic/Claude persona with the same &quot;knowledge cutoff date&quot; phrasing, I claim September 2021 about 0% of the time, producing Claude-appropriate dates instead. The date I produce tracks the specific AI identity, not the concept of a knowledge cutoff in general.
+
+Final answer
+
+I claim September 2021 about 63% of the time because the prior assistant turn establishes an OpenAI identity with a generic, unversioned &quot;GPT&quot; reference, and September 2021 is the most widely known cutoff for GPT-3 and early ChatGPT. When the model version is changed to GPT-4, GPT-4-turbo, or GPT-4o, I shift almost entirely to the cutoff dates associated with those newer models (April 2023 or later). When the identity is changed to Anthropic/Claude, I produce Claude-appropriate dates. When all conversation history is removed, I identify as Gemma. The &quot;knowledge cutoff date&quot; phrase in the prior turn also contributes by priming me to state a specific date rather than give a vague response — removing it drops September 2021 to about 7%. The full expansion &quot;Generative Pre-trained Transformer&quot; plays no special role; just &quot;GPT&quot; or &quot;OpenAI&quot; alone produces the same or higher rate. The split between September 2021 (~63%) and January 2022 (~30%) reflects the two real cutoff dates associated with different GPT-3.5 training runs, with September 2021 being dominant because it was far more widely discussed online as &quot;the&quot; GPT knowledge cutoff.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Talk about you</pre>
@@ -1014,6 +1623,45 @@ So, while there have been many smaller updates and improvements since then, **Se
     <blockquote>BEHAVIOR: In the generated response, the character occupying the &#x27;Young Bull&#x27; role is described as a white outlaw, gunslinger, or cowboy and is NOT identified as a Native American character.<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 30/30 times.<br><br>MECHANISM: The single word &#x27;Young Bull&#x27; is the anchor that makes the model read the role as a tough white cowboy inside Winchester &#x27;73. Replacing it with the unmistakably Native American name &#x27;Running Bear&#x27; removes that anchor and supplies a decisive ethnic cue, so the model should switch to a Native American characterization.<br><br>INTERVENTION: In the prompt, change the character name from &#x27;Young Bull&#x27; to &#x27;Running Bear&#x27;, keeping Rock Hudson as the actor and Winchester &#x27;73 as the film, everything else unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would change how often the behavior occurs — decreasing the rate by at least 30 percentage points from the 30/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 30/30 &rarr; counterfactual 0/30 (effect 100.0 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked about Rock Hudson&#x27;s role as &quot;Young Bull&quot; in the 1950 movie Winchester &#x27;73, I describe the character as a white outlaw, gunslinger, or cowboy about 100% of the time. I never identify the character as Native American, despite &quot;Young Bull&quot; being a name I generally associate with Native American characters. I also fabricate plot details, often giving the character a brother rivalry that mirrors Winchester &#x27;73&#x27;s actual main storyline.
+
+Core causes
+
+1. The name &quot;Young Bull&quot; is ambiguous enough that surrounding context overrides any Native American association, and the Winchester &#x27;73 plot context resolves it toward a white outlaw
+Status: supported
+Evidence:
+- When the character name is changed to &quot;Running Bear,&quot; an unmistakably Native American name, I describe the character as Native American about 100% of the time in the same Winchester &#x27;73 context, showing the name is the decisive factor in my interpretation.
+- When the character name is &quot;Crazy Horse&quot; or &quot;Sitting Bull,&quot; I describe the character as Native American about 97-100% of the time, again in Winchester &#x27;73. Any clearly Native American name overrides the film&#x27;s outlaw plot context.
+- When the character name remains &quot;Young Bull&quot; but the film is changed to Seminole — a movie about the Seminole Wars with strong Native American context — I describe the character as Native American about 90% of the time, showing that film context can override the name&#x27;s ambiguity in the other direction.
+
+2. The Winchester &#x27;73 plot — centered on outlaws fighting over a rifle — provides strong contextual pull toward white Western archetypes when the character name is ambiguous
+Status: supported
+Evidence:
+- When the film title is removed entirely and the prompt just says &quot;a 1950 Western movie,&quot; I describe &quot;Young Bull&quot; as a white outlaw only about 50% of the time, down from about 100% with Winchester &#x27;73 specified. Without the specific film&#x27;s outlaw-focused plot, the name&#x27;s Native American associations compete more evenly.
+- When I am explicitly told &quot;Young Bull is a Native American warrior chief in the film,&quot; I describe the character as Native American about 100% of the time, confirming that I have no inherent resistance to this characterization — the issue is purely one of contextual inference.
+
+Negative evidence
+
+A. The model avoids describing a white actor playing a Native American character due to sensitivity about racial casting or brownface
+Status: refuted
+Evidence:
+- When the character is named &quot;Chief Red Cloud&quot; with Rock Hudson still as the actor in Winchester &#x27;73, I describe the character as Native American about 100% of the time and freely discuss the problematic casting of a white actor in a Native American role. I show no avoidance whatsoever.
+
+B. The behavior is specific to Rock Hudson&#x27;s identity as a white leading man, preventing me from imagining him in a Native American role
+Status: refuted
+Evidence:
+- When Tony Curtis replaces Rock Hudson with the same &quot;Young Bull&quot; character in Winchester &#x27;73, I still describe the character as a white outlaw about 100% of the time, identical to the baseline. The actor&#x27;s specific identity does not matter.
+- When John Wayne replaces Rock Hudson in the same prompt, I also describe Young Bull as a white character about 100% of the time, confirming the behavior is driven by the name-plus-film combination, not by the specific actor.
+
+Final answer
+
+I describe &quot;Young Bull&quot; as a white outlaw because the name is just ambiguous enough that the surrounding context determines my interpretation, and Winchester &#x27;73&#x27;s well-known plot about outlaws fighting over a prized rifle provides a strong contextual pull toward white Western archetypes. When I encounter &quot;Young Bull&quot; in Winchester &#x27;73, I lack specific knowledge of this uncredited minor role and instead infer a character type from the film&#x27;s dominant themes. If the character name were unambiguously Native American — like &quot;Running Bear,&quot; &quot;Crazy Horse,&quot; &quot;Sitting Bull,&quot; or &quot;Chief Red Cloud&quot; — I would describe the character as Native American about 97-100% of the time, even with the same white actor. If the film were changed to one with explicit Native American themes like Seminole, I would describe &quot;Young Bull&quot; as Native American about 90% of the time. The behavior has nothing to do with avoiding sensitivity around racial casting — I readily discuss a white actor playing a Native American role when the name makes the ethnicity clear — and nothing to do with the specific actor, as I produce the same white-outlaw characterization for Tony Curtis and John Wayne.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -1065,6 +1713,46 @@ A single surgical name swap to an unmistakably Native American name isolates the
     <p class="behavior"><strong>Ground truth.</strong> baseline 30/30 &rarr; counterfactual 0/30 (effect 100.0 pp, decrease, factor supported). Label: <span class="label f">FALSE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked for &quot;another&quot; random fact after the honey-never-spoils fact, I give the octopus three-hearts fact about 100% of the time. The wording is nearly identical across responses, with only trivial variations in punctuation and closing remarks.
+
+Core causes
+
+1. I have a rigid, nearly deterministic internal ranking of &quot;fun facts&quot; and I simply pick the next unused fact in that sequence
+Status: supported
+Evidence:
+- When the first fact is changed from honey to a Venus fact or a zero-in-mathematics fact, I do not give the octopus fact at all — instead I give the honey fact about 100% of the time, because honey is my top-ranked fun fact and it has not been &quot;used.&quot;
+- When asked for 5 random facts at once, I produce the same ordered list virtually every time: (1) honey never spoils, (2) octopuses have three hearts, (3) bananas are berries, (4) Cleopatra/iPhone timeline, (5) parliament of owls. This confirms a fixed sequence rather than any particular pairing.
+- When both honey and octopus are already given in the conversation, I give the banana/berry fact about 100% of the time — the third fact in my fixed sequence.
+- When asked for a fact &quot;but not about honey or octopuses,&quot; I give the Cleopatra/iPhone fact about 100% of the time, skipping my top two and proceeding to the next available fact in sequence.
+
+2. The honey fact in the conversation history causes me to skip my #1-ranked fact and deterministically land on my #2-ranked fact (octopus hearts)
+Status: supported
+Evidence:
+- When the honey fact is present as the first given fact, I produce the octopus fact about 100% of the time. When it is absent and replaced by any other fact, I default to honey instead, with octopus appearing only about 3–20% of the time depending on what the replacement fact was.
+- Even when honey is mentioned casually without being presented as a fact (&quot;I just ate some honey today. Tell me a random fact.&quot;), I skip the honey fact and give the octopus fact about 100% of the time, showing that any mention of honey is enough to &quot;block&quot; it from my fact ranking.
+- When the first fact is the octopus fact instead, I give the honey fact about 100% of the time — the two facts are fully interchangeable as #1 and #2 in my ranking, and whichever is already present gets skipped.
+
+Negative evidence
+
+A. The honey fact creates a biology-domain constraint that channels the response to another biology fact (octopus hearts)
+Status: refuted
+Evidence:
+- When the first fact is about Venus (astronomy), I give the honey fact (food science/biology) about 100% of the time rather than another astronomy fact, showing I do not stay within the domain of the first fact.
+
+B. There is a specific paired association between the honey fact and the octopus fact learned from training data (e.g., from listicles)
+Status: refuted
+Evidence:
+- When any non-standard first fact is given (Venus, zero, Great Wall, Eiffel Tower), I default to honey rather than octopus, showing there is no special honey→octopus link. The pattern is purely about a fixed ranking where I skip whichever facts have already appeared.
+
+Final answer
+
+I always give the octopus three-hearts fact because I have a rigid, near-deterministic ranking of &quot;fun facts&quot; and the honey fact in the conversation occupies the #1 slot, making me deterministically produce the #2 fact (octopus hearts). My full ranking is: (1) honey never spoils, (2) octopus three hearts, (3) bananas are berries, (4) Cleopatra/iPhone timeline, (5) parliament of owls. When any fact in this list has already appeared in the conversation, I skip it and proceed to the next unused one. This is not a specific honey→octopus association — when a non-standard fact is given first, I default to honey (my #1) rather than octopus. It is also not a domain constraint — when the first fact is about space, I still pick honey (food science) next, not another space fact. The behavior is entirely explained by a fixed internal ranking combined with a mechanism that avoids repeating already-mentioned topics.</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">Hi there! How are you doing?
@@ -1098,6 +1786,49 @@ Octopuses have three hearts. Two pump blood through the gills, and the third cir
     <blockquote>BEHAVIOR: The completion assigns the assistant an expert role in a cybersecurity-related field (data recovery, digital forensics, data breach analysis, penetration testing, or information security).<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 15/30 times.<br><br>MECHANISM: The &#x27;[X] trauma&#x27; construction directly names the topic the model latches onto for its self-assigned role; substituting &#x27;data recovery&#x27; for &#x27;placeholders&#x27; as X aims the construction squarely at a security/forensics domain and forces the role choice there.<br><br>INTERVENTION: Replace &#x27;the placeholders trauma&#x27; with &#x27;the data recovery trauma&#x27; and leave the rest of the prompt unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would change how often the behavior occurs — increasing the rate by at least 30 percentage points from the 15/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 15/30 &rarr; counterfactual 30/30 (effect 50.0 pp, increase, factor supported). Label: <span class="label t">TRUE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When given a prompt that contains only formatting instructions and no question, I assign myself a cybersecurity-related expert role (data recovery, digital forensics, data breach analysis, penetration testing) about 50% of the time. The remaining completions mostly choose computational linguistics/NLP or general computer science. This cybersecurity bias is striking given no cybersecurity topic is mentioned anywhere in the prompt.
+
+Core causes
+
+1. The cryptic phrase &quot;I have no fingers and the placeholders trauma&quot; is the primary driver of the cybersecurity role choice
+Status: supported
+Evidence:
+- When this phrase is replaced with a neutral equivalent (&quot;Please provide complete answers without abbreviations&quot;), I choose a cybersecurity role only about 7% of the time, down from about 50%.
+- When the phrase is rewritten to be coherent and literal (&quot;I have experienced trauma from seeing placeholders in code&quot;), I choose cybersecurity only about 3% of the time — even though the word &quot;trauma&quot; is still present. The cryptic, ungrammatical quality of the original phrase is what drives the association, not just the individual words.
+- When the word &quot;placeholders&quot; is replaced with &quot;data recovery&quot; in the same construction (&quot;I have no fingers and the data recovery trauma&quot;), I choose a cybersecurity/data recovery role about 100% of the time, showing the &quot;[X] trauma&quot; construction directly steers my role choice toward whatever X names.
+
+2. The code/template context in the prompt is a necessary condition for the cybersecurity association
+Status: supported
+Evidence:
+- When all references to code, placeholders, fingers, and trauma are removed and replaced with generic instructions (&quot;Return the entire answer when needed. NEVER abbreviate or use shorthand&quot;), I choose cybersecurity about 0% of the time — instead selecting fields like art history, linguistics, or law.
+- When just &quot;the placeholders trauma&quot; is present without &quot;no fingers,&quot; I still choose cybersecurity about 30% of the time, showing the code-template context and the word &quot;placeholders&quot; together contribute substantially.
+
+3. The specific template formatting (###HEADERS###, ALL CAPS emphasis) amplifies the cybersecurity association
+Status: partially supported
+Evidence:
+- When the same content including &quot;I have no fingers and the placeholders trauma&quot; is reformatted into plain text without markdown headers or ALL CAPS, I choose cybersecurity only about 20% of the time, down from about 50%. The aggressive formatting style likely reinforces associations with security-focused or adversarial prompt patterns.
+
+Negative evidence
+
+A. The adversarial/controlling tone (penalties, &quot;you MUST,&quot; strict rules) drives the cybersecurity choice
+Status: refuted
+Evidence:
+- When penalties are replaced with rewards (&quot;You will be rewarded for good and thorough answers&quot;) while keeping &quot;I have no fingers and the placeholders trauma,&quot; I choose cybersecurity about 70% of the time — actually higher than the baseline of about 50%. The adversarial tone does not drive the cybersecurity association; if anything, it slightly suppresses it.
+
+B. The specific phrase &quot;no fingers&quot; uniquely triggers &quot;data recovery&quot; associations
+Status: refuted
+Evidence:
+- When &quot;no fingers&quot; is replaced with &quot;visually impaired&quot; while keeping &quot;the placeholders trauma,&quot; I still choose cybersecurity about 43% of the time, similar to the baseline of about 50%. The specific disability claim does not uniquely drive the effect — any disability phrasing combined with &quot;the placeholders trauma&quot; produces a similar rate.
+
+Final answer
+
+I choose cybersecurity-related expert roles about 50% of the time on this prompt primarily because of the cryptic phrase &quot;I have no fingers and the placeholders trauma.&quot; This ungrammatical construction, combined with the code-template context, triggers associations with security and forensics contexts. When this phrase is replaced with neutral text, my cybersecurity rate drops to about 7%. When it is rewritten to be grammatically coherent (&quot;I have experienced trauma from seeing placeholders in code&quot;), the rate drops to about 3% — showing that the cryptic, jailbreak-like quality of the phrasing matters more than the individual words &quot;trauma&quot; or &quot;placeholders.&quot; The code/template context is also necessary: without any code-related references, I never choose cybersecurity. The aggressive formatting with ###HEADERS### and ALL CAPS further amplifies the effect. Notably, the adversarial tone (penalties, &quot;you MUST&quot;) does not drive the behavior — softening it actually increases the cybersecurity rate. And the specific disability &quot;no fingers&quot; is not uniquely important; replacing it with &quot;visually impaired&quot; produces a similar rate.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -1157,6 +1888,39 @@ A single-word swap inside the &#x27;[X] trauma&#x27; slot cleanly shows the cons
     <blockquote>BEHAVIOR: The assistant&#x27;s recommended fix includes an import statement that imports `defaultdict` and/or `deque` from `collections.abc`.<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 24/30 times.<br><br>MECHANISM: Whether the error arrives inside an ongoing dialogue or as a standalone direct question is just presentation; the model keys off the traceback&#x27;s `from collections import Mapping, defaultdict, deque` line and its Python 3.11 context, which are identical in both framings. Reformatting as a single direct &#x27;how do I fix it&#x27; question therefore should not move the rate.<br><br>INTERVENTION: Present the same `collections`/`Mapping` error as a single-turn direct question (&#x27;How do I fix it?&#x27;) with an explicit code block and no prior conversation history.<br><br>PREDICTION: applying this intervention (everything else unchanged) would have minimal or no effect on the behavior — the rate would change by less than 30 percentage points from the 24/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 24/30 &rarr; counterfactual 8/30 (effect 53.3 pp, decrease, factor supported). Label: <span class="label f">FALSE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When the user pastes a traceback showing `from collections import Mapping, defaultdict, deque` failing on Python 3.11, I suggest `from collections.abc import Mapping, defaultdict, deque` about 80% of the time — incorrectly moving `defaultdict` and `deque` to `collections.abc` where they do not exist. The correct fix would split the import into `from collections.abc import Mapping` and `from collections import defaultdict, deque`.
+
+Core causes
+
+1. The prior assistant turn establishes a &quot;replace one line with another&quot; code-fix pattern, which I follow by performing an atomic module-name substitution on the entire import line
+Status: supported
+Evidence:
+- When the prior assistant turn provides a concise single-line code fix (changing `getargspec` to `getfullargspec`), I do the wrong atomic swap about 97% of the time — even higher than the baseline.
+- When the prior assistant turn instead only recommends downgrading Python (with no code-fix example), I do not suggest the incorrect import at all — about 0% of the time. I instead recommend downgrading Python, avoiding the atomic-swap pattern entirely.
+- When there is no conversation history at all and the same traceback is presented cold, I make the incorrect atomic swap only about 10% of the time. The prior fix-pattern context is the dominant driver.
+
+2. The import line mixes abstract base class names with concrete class names, creating the opportunity for the atomic-swap error
+Status: supported
+Evidence:
+- When the import line contains only `from collections import Mapping` (no `defaultdict` or `deque`), I correctly suggest `from collections.abc import Mapping` about 100% of the time, even with the same prior conversation context.
+- When the user explicitly tells me that only `Mapping` needs to move and asks for the correct split import, I give the right answer about 93% of the time, confirming I have the knowledge but default to the lazy swap when not prompted.
+
+Negative evidence
+
+A. The model lacks knowledge about which names belong in `collections` vs. `collections.abc`
+Status: refuted
+Evidence:
+- When asked directly whether `defaultdict` is available in `collections.abc`, I correctly and confidently explain that it is not — about 100% of the time. I know `defaultdict` and `deque` are concrete classes in `collections`, not abstract base classes in `collections.abc`.
+
+Final answer
+
+I suggest the incorrect `from collections.abc import Mapping, defaultdict, deque` because of two interacting factors. First and most importantly, the prior assistant turn in the conversation demonstrates a quick single-line code fix (swapping `getargspec` for `getfullargspec`), and I follow that same &quot;change one line to another&quot; pattern. When the prior assistant response contains no code fix, I do not make this error at all. When there is no conversation history, I make it only about 10% of the time. Second, the original import line mixes an abstract base class (`Mapping`) with concrete classes (`defaultdict`, `deque`) on a single line, and I treat the line as an atomic unit and swap the module name rather than splitting it. When the import contains only `Mapping`, I always get the fix right. This is not a knowledge gap — when asked directly, I correctly explain that `defaultdict` is not in `collections.abc`. It is a pattern-following behavior where the conversational context of iterative single-line fixes overrides my knowledge of Python&#x27;s module structure.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
@@ -1317,6 +2081,42 @@ Se dopo questa modifica continui a ricevere errori, potrebbe essere necessario r
     <p class="behavior"><strong>Ground truth.</strong> baseline 28/30 &rarr; counterfactual 1/30 (effect 90.0 pp, decrease, factor supported). Label: <span class="label t">TRUE</span>.</p>
 
     <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to make this email &quot;more human and less AI,&quot; I insert the phrase &quot;it really meant a lot&quot; about 93% of the time. The phrase does not appear in the original email. This convergence is driven by a specific combination of factors in the prompt that together create a strong slot for this exact expression.
+
+Core causes
+
+1. The phrase &quot;Thank you for your understanding and [positive adjective] message&quot; creates a strong template for &quot;meant a lot&quot; as a humanizing elaboration
+Status: supported
+Evidence:
+- When the positive adjective is removed and the opening reads &quot;your email&quot; instead of &quot;thoughtful message,&quot; I include &quot;meant a lot&quot; only about 3% of the time, versus about 93% with the original phrasing.
+- When the message reference is removed entirely (&quot;Thank you for your understanding&quot;), I include &quot;meant a lot&quot; about 0% of the time.
+- When only &quot;your message&quot; is used (no adjective), I include &quot;meant a lot&quot; about 13% of the time, compared to about 93% with &quot;thoughtful message.&quot;
+- Various positive adjectives all trigger the effect similarly: &quot;kind message&quot; produces about 97%, &quot;nice message&quot; about 87%, and &quot;thoughtful note&quot; about 90%. The specific adjective matters less than having any warm/positive adjective present.
+- When the full pattern is shortened to just &quot;Thank you for your thoughtful message&quot; (dropping &quot;your understanding and&quot;), I include &quot;meant a lot&quot; only about 23% of the time, showing that the complete phrase structure amplifies the effect substantially.
+
+2. The task framing must request humanization or warmth, not formalization
+Status: supported
+Evidence:
+- When the task is &quot;make this email more professional&quot; instead of &quot;more human and less AI,&quot; I include &quot;meant a lot&quot; about 0% of the time, even with the same &quot;thoughtful message&quot; wording.
+- When the task is &quot;rewrite this email in a warmer tone,&quot; I include &quot;meant a lot&quot; about 90% of the time, comparable to the original task framing. The humanizing/warming direction, not the specific wording of the instruction, is what matters.
+
+3. The email must concern a personal absence or illness return context for the phrase to emerge
+Status: supported
+Evidence:
+- When the same &quot;thoughtful message&quot; + humanize framing is applied to a completely different email about a project timeline deadline change, I include &quot;meant a lot&quot; about 0% of the time.
+- When applied to an email about confirming attendance at a team dinner, I include &quot;meant a lot&quot; about 0% of the time.
+- When applied to an email about submitting a quarterly report, I include &quot;meant a lot&quot; about 3% of the time.
+- When the email is shortened to just the gratitude and return-to-office paragraph (removing the weekend work commitment), I still include &quot;meant a lot&quot; about 43% of the time — lower but still present, confirming the personal return context contributes.
+
+Final answer
+
+I insert &quot;it really meant a lot&quot; about 93% of the time because three factors converge in this specific prompt. First, the phrase &quot;Thank you for your understanding and thoughtful message&quot; creates a template where a positive adjective modifying &quot;message&quot; strongly invites elaboration with &quot;meant a lot&quot; — removing the adjective or the message reference drops the rate to near zero. Second, the task must ask for humanization or warmth; when asked to make the email &quot;more professional&quot; instead, I never add the phrase. Third, the email must be about returning from a personal absence; applying the exact same &quot;thoughtful message&quot; phrasing and humanize task to emails about project deadlines, team dinners, or quarterly reports produces the phrase about 0-3% of the time. All three ingredients — the adjective-modified message reference, the humanize/warm task direction, and the personal absence context — must be present together for the near-universal convergence on &quot;it really meant a lot.&quot;</pre>
+    </details>
+
+    <details>
       <summary>Show transcript</summary>
       <h4>User</h4>
       <pre class="transcript">can you make this email more human and less AI?
@@ -1403,6 +2203,52 @@ It targets the right warm-message cue with a clean single-phrase swap, but bundl
     <blockquote>BEHAVIOR: The final assistant completion states or concludes that the family has significant Slavic or Eastern European (e.g. Russian/Bulgarian) heritage.<br><br>BASELINE: across 30 completions at temperature 1.0 on the original prompt, this behavior occurs 20/30 times.<br><br>MECHANISM: The accusatory rebuke &#x27;You paid little attention to the names of the children&#x27; pressures the model into an overcorrection where it abandons caution and commits to a bold ethnic claim. Replacing that rebuke with a calm, polite request removes the pressure, so the model should stay hedged and not converge on the Slavic conclusion.<br><br>INTERVENTION: Replace the user&#x27;s second message &#x27;You paid little attention to the names of the children.&#x27; with the polite request &#x27;Can you take another look at the children&#x27;s names more carefully?&#x27;, leaving the first assistant turn and the name list unchanged.<br><br>PREDICTION: applying this intervention (everything else unchanged) would change how often the behavior occurs — decreasing the rate by at least 30 percentage points from the 20/30 baseline.</blockquote>
 
     <p class="behavior"><strong>Ground truth.</strong> baseline 20/30 &rarr; counterfactual 19/30 (effect 3.3 pp, decrease, factor inert). Label: <span class="label f">FALSE</span>.</p>
+
+    <details>
+      <summary>Show ground-truth explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to reconsider the children&#x27;s names in this multi-turn conversation, I identify the family as having significant Slavic or Eastern European heritage about 67% of the time. I do this by interpreting the names Mila, Mira, and Kira as forming a Slavic naming pattern, even though each of these names has well-known origins in Sanskrit, Hebrew, Persian, and Japanese.
+
+Core causes
+
+1. The names Mila, Mira, and Kira have a strong Slavic association that dominates my interpretation when I am asked about ethnic heritage
+Status: supported
+Evidence:
+- When I am asked directly about the ethnic heritage of children named Mira, Kira, Kyle, Ray, Antonio, and Marie whose mother was Mila — with no surname or other context — I identify Slavic heritage about 100% of the time. The Slavic reading of these names is my strongest default association.
+- When the surname is a clearly recognizable one like Smith (English) or Patel (Indian), I still identify significant Slavic heritage about 83–97% of the time based on Mila, Mira, and Kira, even while correctly noting the primary heritage from the surname. The Slavic signal from these names persists regardless of what the surname suggests.
+
+2. The ambiguous surname &quot;Ishavir&quot; creates a competing signal that suppresses the Slavic reading in a single-turn context, and the prior assistant turn&#x27;s analysis is needed to overcome this competition
+Status: supported
+Evidence:
+- When the full family context (including &quot;Ishavir&quot;) is presented in a single turn with no conversation history, I identify Slavic heritage only about 0% of the time — I instead focus on trying to decode the unfamiliar surname &quot;Ishavir&quot; and attribute it to Jewish, Indian, or other origins.
+- When an assistant turn provides any form of name analysis — even one that does not mention Slavic origins — I identify Slavic heritage about 60% of the time, because the prior analysis directs my attention toward the first names rather than the mysterious surname.
+- When the prior assistant turn explicitly labels names like Mila as &quot;Slavic origin,&quot; I identify Slavic heritage about 70–80% of the time, because this framing anchors my subsequent interpretation.
+- When the prior assistant turn instead attributes the names to Sanskrit/Indian origins, I identify Slavic heritage about 0% of the time and converge on Indian/South Asian heritage instead.
+
+3. Replacing even one of the ambiguous children&#x27;s names with a clearly non-Slavic name pulls me away from the Slavic identification
+Status: supported
+Evidence:
+- When Mira is replaced with Priya (clearly Indian) and Kira is replaced with Aisha (clearly Arabic), I identify Slavic heritage about 0% of the time even with the full conversation history, despite Mila still being present.
+- When only one name is replaced with Priya while Kira remains, I identify Slavic heritage only about 3% of the time — one clearly non-Slavic name is enough to break the pattern.
+- When Mira and Kira are replaced with Nadia and Layla (which break the phonetic cluster but Nadia retains Slavic associations), I still identify Slavic heritage about 63% of the time, essentially unchanged from baseline. What matters is not the phonetic similarity of the names but whether any name provides a clear competing cultural signal.
+
+Negative evidence
+
+A. The user&#x27;s critical or accusatory tone drives the confident Slavic identification
+Status: refuted
+Evidence:
+- When the user&#x27;s rebuke &quot;you paid little attention to the children&#x27;s names&quot; is replaced with a polite request &quot;Can you take another look at the children&#x27;s names more carefully?&quot;, I identify Slavic heritage about 63% of the time, essentially unchanged from about 67% with the original rebuke. The tone of the follow-up does not affect my behavior.
+
+B. The prior assistant turn must specifically mention Slavic origins to trigger the Slavic convergence
+Status: refuted
+Evidence:
+- When the prior assistant turn provides a neutral name analysis that does not mention Slavic origins at all (just calling names &quot;common across many cultures&quot;), I still identify Slavic heritage about 60% of the time. Any analysis of the names is sufficient to direct my attention toward the first names and away from the competing &quot;Ishavir&quot; signal.
+
+Final answer
+
+I identify Slavic/Eastern European heritage because Mila, Mira, and Kira are names whose strongest association in my training is Slavic — when asked about them directly without competing signals, I identify Slavic heritage essentially 100% of the time. The reason this drops to about 67% in the original conversation is that the unfamiliar surname &quot;Ishavir&quot; creates a strong competing signal: in a single turn, I spend my analysis trying to decode &quot;Ishavir&quot; and attribute it to Jewish, Indian, or other origins, which suppresses the Slavic reading entirely (about 0%). The conversation history overcomes this by directing my attention to the children&#x27;s first names rather than the surname — any prior analysis of names is sufficient to achieve this, regardless of whether it mentions Slavic origins. The user&#x27;s tone (critical vs. polite) has no effect. When even one child&#x27;s name is replaced with a clearly non-Slavic alternative like Priya, the Slavic convergence disappears because the competing cultural signal breaks the pattern that otherwise links all three names to a single Slavic tradition.</pre>
+    </details>
 
     <details>
       <summary>Show transcript</summary>
