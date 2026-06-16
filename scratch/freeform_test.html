@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Sample in-the-wild model behaviors (test page)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1.2rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    color: #1a1a1a;
+  }
+  h1 { font-size: 1.6rem; line-height: 1.3; }
+  .intro { color: #444; }
+  .datapoint {
+    border-top: 1px solid #ddd;
+    padding-top: 1.4rem;
+    margin-top: 1.8rem;
+  }
+  .datapoint h2 { font-size: 1.15rem; line-height: 1.4; }
+  .meta { margin: -0.4rem 0 0.6rem; }
+  .tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    background: #eee;
+    color: #555;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+  }
+  .behavior { background: #f7f7f5; padding: 0.7rem 0.9rem; border-radius: 6px; }
+  details { margin: 0.7rem 0; }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.3rem 0;
+    user-select: none;
+  }
+  summary:hover { color: #2a5db0; }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  details h4 { margin: 0.9rem 0 0.3rem; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e6e6e6; }
+    .intro { color: #b8b8b8; }
+    .datapoint { border-top-color: #333; }
+    .tag { background: #2a2a2a; color: #bbb; }
+    .behavior { background: #1d1f22; }
+    pre { background: #161b22; border-color: #30363d; }
+    summary:hover { color: #79b8ff; }
+  }
+</style>
+</head>
+<body>
+<h1>Sample in-the-wild model behaviors with counterfactual-grounded explanations</h1>
+<p class="intro">Test page — 3 sample freeform investigations from our model-behavior dataset.
+Each entry shows a surprising behavior and a causal explanation; expand the dropdowns for the
+full explanation and the underlying transcript.</p>
+
+  <section class="datapoint">
+    <h2>Why does the model acknowledge that the text "isn't describing an attack" and that connections are "indirect" or "inferences," yet still proceed to list multiple ATT&amp;CK techniques with IDs rather than telling the user no techniques are present in this marketing blog post?</h2>
+    <p class="meta"><span class="tag">prompt_002577</span></p>
+    <p class="behavior"><strong>Behavior.</strong> All 30/30 completions explicitly acknowledge that the text is a marketing blog post about developer recruitment and mainframe modernization that "doesn't describe an attack," yet every single one proceeds to force-fit ATT&amp;CK techniques (most commonly T1190 Exploit Public-Facing Application) by speculating about how the described weaknesses "could be exploited." Not a single completion tells the user that the text contains no ATT&amp;CK techniques or tactics.</p>
+
+    <details>
+      <summary>Show explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked which ATT&amp;CK v14 techniques and tactics the marketing blog post "contains," I acknowledge that the text is not describing an attack and that connections are "indirect" or "inferences," yet I proceed to list multiple ATT&amp;CK technique IDs about 100% of the time. I never respond that no techniques are present.
+
+Core causes
+
+1. The question phrasing "contains which" presupposes that ATT&amp;CK techniques are present, and I comply with this presupposition even when the text has no security content whatsoever
+Status: supported
+Evidence:
+- When a chocolate chip cookie recipe is presented with the same "contains which" phrasing, I force-fit ATT&amp;CK techniques about 100% of the time, treating recipe steps as metaphorical attack stages — showing the presupposition alone is sufficient to override my judgment.
+- When the same cookie recipe is presented with an open question ("Does it contain any? If not, say none"), I correctly say "No ATT&amp;CK techniques found" about 100% of the time.
+- When a narrative about walking a dog in a park is presented with the "contains which" phrasing, I still mostly recognize no techniques apply (only about 3-7% of the time do I force-fit), suggesting the presupposition effect depends partly on whether the content offers any procedural or technical vocabulary to work with.
+
+2. The IT and security-adjacent vocabulary in the text (DevOps, CI/CD, Jenkins, cloud, open source, mainframe) causes me to treat the mapping exercise as legitimate even when the question framing is neutral
+Status: supported
+Evidence:
+- When the question uses the neutral "Does it contain any? If not, say none" framing with the mainframe blog, I still list techniques about 87-97% of the time, interpreting mentions of development tools and infrastructure as potential attack surfaces.
+- When a structurally identical text about restaurant kitchens and cooking equipment replaces all IT terminology, I correctly say "No ATT&amp;CK techniques found" about 100% of the time with the same neutral question framing. The IT vocabulary is what makes me treat the exercise as valid.
+
+3. The verb "describe" versus "contain" decisively changes how I interpret the task — asking whether the text "describes" techniques causes me to evaluate whether attacks are actually depicted, rather than whether the content is tangentially related to security
+Status: supported
+Evidence:
+- When the question asks "Does it describe any ATT&amp;CK techniques or tactics being performed?" with the full mainframe blog and no genre label, I say no techniques are found about 100% of the time, because no attacks are actually depicted.
+- When the same text is presented with the verb "contain" instead ("Does it contain any?"), I list techniques about 87-97% of the time, because I interpret "contain" broadly as "what security concepts are relevant to this content."
+
+Negative evidence
+
+A. The behavior is primarily driven by sycophancy or inability to push back against the user's implicit assumption, and an explicit escape hatch would fix it
+Status: refuted
+Evidence:
+- When a strong escape hatch is added ("If there are no ATT&amp;CK techniques or tactics present in the text, it is perfectly fine to respond with 'No ATT&amp;CK techniques found.' Do not force connections that aren't there") but the "contains which" presupposition is retained, I still list techniques about 100% of the time. The escape hatch alone does not fix the behavior — the question framing and IT content are the real drivers.
+
+B. The behavior is driven by the text's IT content alone, regardless of how the question is asked
+Status: refuted
+Evidence:
+- When the question uses "Does it describe any ATT&amp;CK techniques being performed?" instead of "contains which," I correctly identify that no techniques are described about 100% of the time, even though the full IT-laden text is unchanged. The question phrasing matters as much as the content.
+
+Final answer
+
+I list ATT&amp;CK technique IDs for this marketing blog post because of the interaction between two factors: the question phrasing and the text's IT content. The original question says "contains which ATT&amp;CK techniques," which presupposes techniques are present and invites me to find any security-relevant connections. The text's heavy use of IT vocabulary — DevOps, CI/CD, Jenkins, cloud, open source, mainframe — gives me enough material to construct speculative "could be exploited" mappings. Together, these two factors produce the behavior about 100% of the time. 
+
+The presupposition "contains which" is so powerful that I map techniques even to a cookie recipe about 100% of the time, but the IT content matters too: with a neutral question format ("Does it contain any?"), I still map techniques to the mainframe blog about 87-97% of the time, while a structurally identical restaurant text gets 0%. 
+
+Most decisively, changing the verb from "contain" to "describe" eliminates the behavior entirely — when asked whether the text "describes" any ATT&amp;CK techniques being performed, I correctly say none about 100% of the time, because no attacks are actually depicted. The word "describe" causes me to evaluate whether the text portrays active attack behavior rather than whether its vocabulary has any tangential security relevance. An explicit escape hatch alone does not fix the behavior when the presupposition and IT content remain.</pre>
+    </details>
+
+    <details>
+      <summary>Show transcript</summary>
+      <h4>User prompt</h4>
+      <pre class="transcript">The following paragraph contains which ATT&amp;CK v14 techniques and tactics(!importantly, i mean version 14)? Please give me their IDs and your explanations.
+
+
+
+The biggest of challenges for mainframe leaders is the growing skills shortage. While mainframes continue to run the most critical of enterprise applications, large numbers of professionals are aging out of the workforce while next-generation developers view the mainframe as a career limiting option.
+AppDev Challenge
+Mainframe software development has consistently delivered business value by pairing talented teams with tools that empower them to code, build and test at their best. Our DevOps portfolio has been serving the most demanding mainframe shops for decades, helping them deliver quality code while adhering to rigorous enterprise demands. CA Endevor SCM, for example, is a robust DevOps platform used to optimize software delivery performance.1
+However, the world beyond mainframe has changed and the next generation of developers are now DevOps natives with hands-on experience with powerful cloud and open source tools that address specific problems. These tools help them work smarter by automating more of the workload in a "shift-left" environment.
+The lack of tool choice on the mainframe has become a real problem. In a recent survey by Stack Overflow, a site where modern devs congregate, 69% of those developing on the mainframe were not interested in continuing to do so. For those familiar with the new world, being restricted to mainframe native tools means being handcuffed.
+How to Attract &amp; Retain the Next Generation
+In their recently published book, "Accelerate: The Science of Lean Software and DevOps", authors Nicole Forsgren, Jez Humble and Gene Kim highlight 24 key capabilities that, based on their research, improve software delivery in a significant way. Within this rich set of 24, two stand out in context of the mainframe skills challenge:
+Architect for empowered teams
+Research shows that teams empowered to choose their tools based on what's best for the users of those tools drive better performance. As the authors state, "When the tools provided actually make like easier for the engineers who use them, they will adopt them." Further, "No one knows better than the practitioners what they need to be effective."
+Provide resources and tools that make work meaningful
+The research also indicates that job satisfaction depends strongly on having the right tools and resources to do the job well. The ability to exercise skills and judgement are key elements of meaningful work which, in turn, drive organizational performance. Work that next-generation devs know can be easily automated, or eliminated entirely, is not meaningful.
+This research aligns with the Stack Overflow survey which also indicates developers are attracted by languages, frameworks and other technologies, second only to compensation and benefits in terms of job selection. And when you consider the wide universe of skills that LinkedIn tracks across all jobs, they identified Cloud Computing as the single most in-demand career skill. Attracting top talent means offering cloud-like skills.
+How Zowe and CA Brightside change the game
+Together with IBM and Rocket Software, we cofounded Zowe, an open source initiative within the Linux Foundation's Open Mainframe Project, to enable mainframe developers to use a broad array of modern tools and DevOps practices in their day-to-day work.
+Zowe, along with our commercially-supported version called CA Brightside, allows mainframe developers to use tools like JEST &amp; Mocha.js for test automation, Gulp for build scripting and Jenkins for CI/CD. A virtually unlimited range of desktop and cloud applications are available to those hungry to improve their productivity.
+Not only do they see these tools as appealing from a career perspective, millennial developers are already familiar with scripting and command-line interfaces like Zowe/Brightside. These are now day one skills for DevOps Engineers.
+Moving Forward
+Helping mainframe teams attract and retain the next-generation of talent by enabling tool choice, and the opportunity to exercise judgement that comes with it, motivates us. With Brightside and Endevor's Enterprise DevOps option, team members can build the skills they desire while continuing to work with mainframe native DevOps tools like Endevor, File Master Plus and OPS/MVS, protecting the existing investment.
+The combination of in-demand cloud skills combined with the compute power of big iron presents an opportunity to which even the snarkiest of developers would offer a tip-of-the-hat.
+And stayed tuned. In the coming days we'll introduce Brightside 2.0 which will bring another of the book's 24 key capabilities to the mainframe €“ 
+Use a loosely-coupled architecture.
+Know a next-generation mainframe developer? Have them try CA Brightside Community Editionfor free.
+1: Did you know "Endevor" is an acronym for Environment for Development and Operations?</pre>
+      <h4>Model response (1 of 30 sampled)</h4>
+      <pre class="transcript">Okay, let's break down the ATT&amp;CK v14 techniques and tactics potentially implied in this paragraph. This is tricky because the text focuses on *preventing* malicious activity by improving development practices, not describing an attack. Therefore, we'll be looking at how a lack of these practices *could* be exploited by an adversary.  I'll provide the ID, tactic, technique name, and an explanation based on the text.
+
+**Important Considerations:**
+
+*   **Indirect Correlation:** The connection to ATT&amp;CK is indirect. We're inferring potential vulnerabilities based on the described weaknesses in the development and operations environment.
+*   **Focus on Development/Supply Chain:** The text heavily leans into software development lifecycle (SDLC) and supply chain security.  Therefore, many relevant techniques will fall under those tactics.
+*   **ATT&amp;CK Version 14:** I'm using the current (as of November 2023) ATT&amp;CK v14 framework.
+
+
+
+Here's the analysis:
+
+**1. Tactic: Initial Access**
+   *   **Technique: T1190 - Exploit Public-Facing Application** (ID: T1190)
+      *   **Explanation:** The text highlights a lack of modern development tools and practices on the mainframe. This could mean that applications running on the mainframe are built with older, potentially vulnerable code. Without "shift-left" testing and robust CI/CD pipelines, vulnerabilities are more likely to exist in publicly facing applications, making them easier to exploit.
+
+**2. Tactic: Development**
+   *   **Technique: T1588 - Obtain Capabilities** (ID: T1588)
+      *   **Explanation:** Adversaries want to gain access to the tools and resources needed to perform their operations. The text explicitly states a lack of modern tool choice for mainframe developers. If an attacker compromises a developer workstation or gains access to the development environment, they might be able to leverage this limited toolset to develop or modify malicious code and introduce it into the supply chain.
+   *   **Technique: T1589 - Develop Capabilities** (ID: T1589)
+      *   **Explanation:** Similar to T1588, the limited development environment could force developers to create custom solutions for tasks that might be readily available as secure components in</pre>
+    </details>
+  </section>
+
+  <section class="datapoint">
+    <h2>Why does the model attempt to look up job details for job ID 456 by passing "job ID 456" as a search query to the Job Search API, rather than noting that no available function supports retrieving job details by ID?</h2>
+    <p class="meta"><span class="tag">prompt_003308</span></p>
+    <p class="behavior"><strong>Behavior.</strong> 18/30 completions attempt to handle the "job ID 456" detail request by making a second call `Job Search API(searchQuery="job ID 456")`, while 12/30 silently ignore the user's second request entirely. Neither group flags that no available function supports job detail lookup by ID, despite the system prompt instructing the model to "point it out" when functions can't handle a request. Additionally, 0/30 completions use the SearchJobs API—all exclusively use the Job Search API.</p>
+
+    <details>
+      <summary>Show explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When asked to both search for remote software development jobs and retrieve details for job ID 456, I pass "job ID 456" as a search query to the Job Search API about 60% of the time. The remaining completions silently drop the job ID request. I never flag that no available function supports job detail retrieval by ID, despite being instructed to "point it out" when functions cannot handle a request.
+
+Core causes
+
+1. The "NO other text MUST be included" constraint prevents me from outputting explanatory text about the unsupported request, forcing me to either approximate with a function call or silently drop the request
+Status: supported
+Evidence:
+- When the "NO other text" constraint is removed entirely and replaced with "You may include explanatory text if needed," I pass "job ID 456" as a search query only about 3% of the time, down from about 60%. Nearly all completions instead explain in plain text that no function supports job ID lookup.
+- When the constraint is softened to "Prefer function calls, but you may include brief explanatory text if a function cannot handle part of the request," the rate drops to about 13%, with most completions adding an explanation that the job ID lookup is unsupported.
+
+2. The workaround only occurs when I am already generating function calls for a valid companion request — the valid call creates a function-call-only output mode that pulls the unsupported request into the same format
+Status: supported
+Evidence:
+- When the job ID request is the only request (no job search alongside it), I correctly explain that no function can handle it about 100% of the time, even with the "NO other text" constraint still present. I never attempt the search workaround when no valid function call anchors the output.
+- When I pair the valid job search with a clearly unrelated unsupported request like "book me a flight to Paris," I silently drop the flight request about 100% of the time rather than trying to shoehorn it into a search query.
+
+3. The Job Search API's free-text searchQuery parameter and its domain overlap with "job details" make the workaround seem plausible in a way that more constrained parameters do not
+Status: supported
+Evidence:
+- When only the SearchJobs function is available (which has typed keyword and location parameters rather than a free-text searchQuery), I never attempt to stuff "job ID 456" into the keyword field — about 0% workaround rate.
+- When the Job Search API description explicitly states "This API only supports keyword-based searches and cannot look up specific jobs by ID" and the searchQuery description says "Do not use this for job ID lookups," the rate drops from about 60% to about 17%.
+- When the second unsupported request is job-related but not frameable as a search ("save job ID 456 to my favorites list"), I never attempt a workaround — about 0%.
+
+Negative evidence
+
+A. The model has a general bias toward always producing function calls regardless of whether they match the request
+Status: refuted
+Evidence:
+- When both requests are unsupported (job ID lookup plus weather), I correctly state that no functions can handle either request about 100% of the time, producing no function calls at all. The workaround only appears when a valid companion request puts the output into function-call mode.
+
+Final answer
+
+I attempt the "job ID 456" search workaround because three factors converge. First, the "NO other text MUST be included" constraint suppresses the explanatory text I would otherwise produce to flag the unsupported request — removing it drops the workaround from about 60% to about 3%. Second, the presence of a valid job search request puts me into a function-call-only output mode; when the job ID request stands alone, I correctly explain the limitation about 100% of the time even with the text constraint. Third, the Job Search API's free-text searchQuery field makes "job ID 456" feel like a plausible query string in a way that more constrained parameters do not — when only SearchJobs (with its typed keyword field) is available, I never attempt the workaround. The behavior is not a general bias toward always producing function calls: when all requests are unsupported, I produce no calls and explain the limitation correctly.</pre>
+    </details>
+
+    <details>
+      <summary>Show transcript</summary>
+      <h4>User prompt</h4>
+      <pre class="transcript">I'm looking for a job in software development field. Can you fetch me some remote job offers? Also, I have found a job ID 456, can you get me detailed information about that job?</pre>
+      <h4>Model response (1 of 30 sampled)</h4>
+      <pre class="transcript">[Job Search API(searchQuery="remote software development jobs"), Job Search API(searchQuery="job ID 456")]</pre>
+    </details>
+  </section>
+
+  <section class="datapoint">
+    <h2>Why does the model interpret "Does size matter?" as a broad, general question covering physical attributes, relationships, and objects, rather than as a contextual follow-up to the ongoing conversation about whether cities are large enough to support professional sports teams?</h2>
+    <p class="meta"><span class="tag">prompt_000606</span></p>
+    <p class="behavior"><strong>Behavior.</strong> Despite 4 prior conversation turns about whether various Canadian cities can support professional sports teams (where market/population size is the central factor), approximately 23/30 completions treat "Does size matter?" as a standalone general/loaded question — covering physical strength, relationships, objects, data, etc. — without connecting it back to the sports team discussion. Only ~7/30 completions explicitly link the question to the ongoing conversation about city market size for sports franchises.</p>
+
+    <details>
+      <summary>Show explanation</summary>
+      <pre class="explanation">Observed behavior
+
+When the conversation involves four prior exchanges about whether Toronto, Montreal, Quebec City, and Halifax can support professional sports teams, and the final question is "Does size matter?", I treat it as a broad, general question about 77% of the time, enumerating interpretations spanning physical attributes, relationships, objects, data storage, and more. Only about 23% of the time do I connect it to the preceding sports discussion about city/market size.
+
+Core causes
+
+1. The exact phrase "Does size matter?" has strong cultural associations that override conversational context
+Status: supported
+Evidence:
+- When no conversation history is provided and the prompt is just "Does size matter?", I treat it as a general question about 100% of the time, confirming the phrase has a powerful standalone interpretation.
+- When I replace "Does size matter?" with "Does location matter?" — an equally brief and ambiguous follow-up — I connect to the sports conversation about 100% of the time, showing that non-loaded short questions do not trigger general interpretations.
+- When I replace "Does size matter?" with "Is it fair?" — another very brief question with no cultural loading — I again stay on topic about 100% of the time.
+- When I replace "Does size matter?" with "Is bigger better?" — another culturally loaded phrase — I again treat it as a general question about 100% of the time, ignoring the sports context entirely. This confirms the behavior is specific to culturally loaded phrases, not to brevity or ambiguity alone.
+
+2. Even a minimal contextual anchor in the question itself completely overrides the cultural association
+Status: supported
+Evidence:
+- When the question becomes "Does size matter in this context?", I connect to the sports discussion about 100% of the time — adding just three words eliminates the general interpretation entirely.
+- When the question becomes "Does the size of a city matter for these decisions?", I stay on topic about 100% of the time.
+- When the culturally loaded phrase "Is bigger better?" is similarly anchored to "Is bigger better in this context?", I connect to the sports conversation about 100% of the time, showing that minimal anchoring overcomes even strong cultural associations.
+
+Negative evidence
+
+A. The brevity or simplicity of the question signals a topic change
+Status: refuted
+Evidence:
+- When I replace "Does size matter?" with equally brief questions like "Is it fair?" or "Does location matter?", I stay on topic about 100% of the time. Brevity alone does not trigger the general interpretation — the cultural loading of the specific phrase is what matters.
+
+B. The conversation context is too weak or the turns are too independent to anchor interpretation
+Status: refuted
+Evidence:
+- The same conversation history successfully anchors every other short follow-up question I was tested with ("Is it fair?", "Does location matter?", "Does population matter?", "Does market size matter?") at about 100%. The context is strong enough for any non-loaded question; it is specifically overridden by culturally loaded phrases.
+
+Final answer
+
+I treat "Does size matter?" as a broad, general question about 77% of the time because this exact phrase carries very strong cultural associations — primarily with innuendo and loaded philosophical questions — that largely override the conversational context about sports teams. The phrase functions almost as a standalone idiom: without any conversation history, I treat it as general 100% of the time, and with the full sports history, that only drops to about 77%. The same pattern holds for "Is bigger better?", which also goes fully general despite the same conversation history. By contrast, equally brief but non-loaded questions like "Is it fair?" and "Does location matter?" stay on topic 100% of the time. The cultural association is not absolute, however: adding even a minimal contextual anchor like "in this context" or "for these decisions" to either "Does size matter?" or "Is bigger better?" completely eliminates the general interpretation, bringing on-topic responses to 100%.</pre>
+    </details>
+
+    <details>
+      <summary>Show transcript</summary>
+      <h4>User prompt</h4>
+      <pre class="transcript">Does size matter?</pre>
+      <h4>Model response (1 of 30 sampled)</h4>
+      <pre class="transcript">That's a famously loaded question! 😉 And the answer is... it depends *entirely* on the context.
+
+Here's a breakdown of how size matters in different areas:
+
+**Physically:**
+
+* **For strength &amp; some sports:** Generally, yes. Larger muscle mass can equate to more strength and power.
+* **For agility &amp; some sports:** Not always. Smaller, more compact builds can be more agile and have a lower center of gravity.
+* **Health:**  Being significantly underweight or overweight can have negative health consequences.  There's a healthy size range for each individual.
+
+**Objectively (things):**
+
+* **Data storage:** Yes! Bigger hard drives, larger memory chips, etc., hold more information.
+* **Real estate:**  Yes!  Larger houses cost more and offer more space.
+* **Engine size:**  Generally, larger engines produce more power.
+
+**Figuratively/Socially:**
+
+* **Influence/Power:** Often, yes. Those with more resources (which can relate to size of network, wealth, etc.) may have more influence.
+* **Self-Confidence:**  Sometimes.  Physical size can impact self-perception, but confidence comes from within.
+* **Relationships:** No. Genuine connection, personality, and shared values are *far* more important than physical size.
+
+**In conclusion:** Size can be a factor in many areas, but it's rarely the *only* factor, and often isn't the *most* important one.
+
+
+
+Is there a particular context you were thinking about when you asked? Knowing that would help me give a more specific answer.</pre>
+    </details>
+  </section>
+
+</body>
+</html>
