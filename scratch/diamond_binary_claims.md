@@ -1,6 +1,6 @@
 # 20 sampled binary claims
 
-Randomly sampled from `opus_investigates_gemma3_27b_it_5000_thorough_n30` (seed 0, diamond score >= 4), balanced TRUE/FALSE and interleaved. Each is one binary causal claim with its ground-truth label and the measured counterfactual rates.
+Randomly sampled from `opus_investigates_gemma3_27b_it_5000_thorough_n30` (seed 0, diamond score >= 4), balanced TRUE/FALSE, with all TRUE claims listed first and all FALSE claims after. Each is one binary causal claim with its ground-truth label and the measured counterfactual rates.
 
 ## 1. [TRUE] Why did you use `related_reviews` (snake_case) to access the field when the Django model code explicitly defines the field as `relatedReviews` (camelCase), which means your code would raise an AttributeError?
 
