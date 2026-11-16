@@ -26,6 +26,10 @@ url: "https://adamkarvonen.github.io" # the base hostname & protocol for your si
 twitter_username: a_karvonen
 github_username:  adamkarvonen
 
+# Only show these pages in the header nav (keeps scratch pages out of it)
+header_pages:
+  - about.markdown
+
 # Build settings
 theme: minima
 plugins:
